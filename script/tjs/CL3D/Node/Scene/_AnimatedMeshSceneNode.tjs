@@ -1,0 +1,504 @@
+CL3D.AnimatedMeshSceneNode = function() {
+    this.init();
+    this.Box = new CL3D.Box3d();
+    this.DoesCollision = false;
+    this.Mesh = null;
+    this.Selector = null;
+    this.LastLODSkinnedAnimationTime = 0;
+    this.Materials = new Array();
+    this.FramesPerSecond = 25 / 100;
+    this.BeginFrameTime = CL3D.CLTimer.getTime();
+    this.FrameWhenCurrentMeshWasGenerated = 0;
+    this.StartFrame = 0;
+    this.EndFrame = 0;
+    this.Looping = false;
+    this.CurrentFrameNr = 0;
+    this.BlendTimeMs = 250;
+    this.AnimationBlendingEnabled = true;
+    this.CurrentlyBlendingAnimation = false;
+    this.JointStatesBeforeBlendingBegin = new Array();
+    this.BeginBlendTime = 0;
+    this.WasAnimatedBefore = false;
+    this.MinimalUpdateDelay = 20;
+    this.AnimatedDummySceneNodes = new Array()
+};
+
+CL3D.AnimatedMeshSceneNode.prototype = new CL3D.SceneNode();
+CL3D.SAnimatedDummySceneNodeChild = function() {
+    this.Node = null;
+    this.JointIdx = -1;
+    this.NodeIDToLink = -1
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.getBoundingBox = function() {
+    return this.Box
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.getNamedAnimationCount = function() {
+    if (this.Mesh && this.Mesh.NamedAnimationRanges) {
+        return this.Mesh.NamedAnimationRanges.length
+    }
+    return 0
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.getNamedAnimationInfo = function(b) {
+    var a = this.getNamedAnimationCount();
+    if (b >= 0 && b < a) {
+        return this.Mesh.NamedAnimationRanges[b]
+    }
+    return null
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.setAnimation = function(a) {
+    if (!this.Mesh) {
+        return false
+    }
+    var b = this.Mesh.getNamedAnimationRangeByName(a);
+    if (!b) {
+        return false
+    }
+    this.setFrameLoop(b.Begin, b.End);
+    this.setAnimationSpeed(b.FPS);
+    return true
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.setAnimationBlending = function(a, b) {
+    this.BlendTimeMs = b == null ? 250 : b;
+    this.AnimationBlendingEnabled = a
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.setAnimationByEditorName = function(c, a) {
+    if (!this.Mesh) {
+        return false
+    }
+    var e = this.Mesh;
+    if (!e) {
+        return false
+    }
+    var b = e.getNamedAnimationRangeByName(c);
+    if (b) {
+        this.setFrameLoop(b.Begin, b.End);
+        if (b.FPS != 0) {
+            this.setAnimationSpeed(b.FPS)
+        }
+        this.setLoopMode(a)
+    } else {
+        if (c) {
+            var d = c.toLowerCase();
+            if (d == "all") {
+                this.setFrameLoop(0, e.getFrameCount());
+                if (e.DefaultFPS != 0) {
+                    this.setAnimationSpeed(e.DefaultFPS)
+                }
+                this.setLoopMode(a)
+            } else {
+                if (d == "none") {
+                    this.setFrameLoop(0, 0);
+                    this.setLoopMode(a)
+                }
+            }
+        }
+    }
+    return true
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.setMesh = function(a) {
+    if (!a) {
+        return
+    }
+    this.Mesh = a;
+    this.Box = a.getBoundingBox();
+    this.setFrameLoop(0, a.getFrameCount())
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.getType = function() {
+    return "animatedmesh"
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.OnRegisterSceneNode = function(d) {
+    if (this.Visible && this.Mesh) {
+        var c = this.Materials;
+        var e = false;
+        var a = false;
+        if (c != null) {
+            for (var b = 0; b < c.length; ++b) {
+                if (c[b].isTransparent()) {
+                    e = true
+                } else {
+                    a = true
+                }
+            }
+        }
+        if (e) {
+            if (this.isParentActiveFPSCameraToRenderChildrenWithoutZBuffer()) {
+                d.registerNodeForRendering(this, CL3D.Scene.RENDER_MODE_TRANSPARENT_AFTER_ZBUFFER_CLEAR)
+            } else {
+                d.registerNodeForRendering(this, CL3D.Scene.RENDER_MODE_TRANSPARENT)
+            }
+        }
+        if (a) {
+            if (this.isParentActiveFPSCameraToRenderChildrenWithoutZBuffer()) {
+                d.registerNodeForRendering(this, CL3D.Scene.TRANSPARENT_SOLID_AFTER_ZBUFFER_CLEAR)
+            } else {
+                d.registerNodeForRendering(this, CL3D.Scene.RENDER_MODE_DEFAULT)
+            }
+        }
+        CL3D.SceneNode.prototype.OnRegisterSceneNode.call(this, d)
+    }
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.getMaterialCount = function() {
+    if (this.Materials != null) {
+        return this.Materials.length
+    }
+    if (this.OwnedMesh) {
+        return this.OwnedMesh.MeshBuffers.length
+    }
+    return 0
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.getMaterial = function(a) {
+    if (this.Materials) {
+        if (a >= 0 && a < this.Materials.length) {
+            return this.Materials[a]
+        } else {
+            if (this.Mesh && this.Mesh.AnimatedMeshesToLink && (a >= 0) && (this.Materials.length == a) && (a < 256)) {
+                var b = new CL3D.Material();
+                this.Materials.push(b);
+                return b
+            }
+        }
+    }
+    return null
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.createClone = function(e, d, g) {
+    var f = new CL3D.AnimatedMeshSceneNode();
+    this.cloneMembers(f, e, d, g);
+    f.Mesh = this.Mesh;
+    if (this.Box) {
+        f.Box = this.Box.clone()
+    }
+    f.DoesCollision = this.DoesCollision;
+    f.Selector = this.Selector;
+    f.LastLODSkinnedAnimationTime = this.LastLODSkinnedAnimationTime;
+    f.Materials = new Array();
+    for (var a = 0; a < this.Materials.length; ++a) {
+        f.Materials.push(this.Materials[a].clone())
+    }
+    f.FramesPerSecond = this.FramesPerSecond;
+    f.BeginFrameTime = this.BeginFrameTime;
+    f.FrameWhenCurrentMeshWasGenerated = this.FrameWhenCurrentMeshWasGenerated;
+    f.StartFrame = this.StartFrame;
+    f.EndFrame = this.EndFrame;
+    f.Looping = this.Looping;
+    f.CurrentFrameNr = this.CurrentFrameNr;
+    f.MinimalUpdateDelay = this.MinimalUpdateDelay;
+    f.BlendTimeMs = this.BlendTimeMs;
+    f.AnimationBlendingEnabled = this.AnimationBlendingEnabled;
+    f.CurrentlyBlendingAnimation = false;
+    f.JointStatesBeforeBlendingBegin = new Array();
+    f.BeginBlendTime = 0;
+    for (var a = 0; a < this.AnimatedDummySceneNodes.length; ++a) {
+        var b = new CL3D.SAnimatedDummySceneNodeChild();
+        b.Node = this.AnimatedDummySceneNodes[a].Node;
+        b.JointIdx = this.AnimatedDummySceneNodes[a].JointIdx;
+        b.NodeIDToLink = this.AnimatedDummySceneNodes[a].NodeIDToLink;
+        f.AnimatedDummySceneNodes.push(b)
+    }
+    return f
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.setAnimationSpeed = function(a) {
+    this.FramesPerSecond = a
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.setLoopMode = function(a) {
+    this.Looping = a
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.setFrameLoop = function(d, a) {
+    if (!this.Mesh) {
+        return false
+    }
+    var b = this.Mesh.getFrameCount() - 1;
+    var e = this.StartFrame;
+    var c = this.EndFrame;
+    if (a < d) {
+        this.StartFrame = CL3D.clamp(a, 0, b);
+        this.EndFrame = CL3D.clamp(d, this.StartFrame, b)
+    } else {
+        this.StartFrame = CL3D.clamp(d, 0, b);
+        this.EndFrame = CL3D.clamp(a, this.StartFrame, b)
+    }
+    if (e != this.StartFrame || c != this.EndFrame) {
+        this.setCurrentFrame(this.StartFrame)
+    }
+    return true
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.setCurrentFrame = function(a) {
+    var b = this.CurrentFrameNr;
+    this.CurrentFrameNr = CL3D.clamp(a, this.StartFrame, this.EndFrame);
+    this.BeginFrameTime = CL3D.CLTimer.getTime() - Math.floor((this.CurrentFrameNr - this.StartFrame) / this.FramesPerSecond);
+    if (this.AnimationBlendingEnabled && this.BlendTimeMs) {
+        this.startAnimationBlending(b)
+    }
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.buildFrameNr = function(e) {
+    var d = 0;
+    if (this.StartFrame == this.EndFrame) {
+        return this.StartFrame
+    }
+    if (this.FramesPerSecond == 0) {
+        return this.StartFrame
+    }
+    var c = 0;
+    if (this.Looping) {
+        var a = false;
+        var b = Math.abs(Math.floor((this.EndFrame - this.StartFrame) / this.FramesPerSecond));
+        if (this.FramesPerSecond > 0) {
+            c = this.StartFrame + ((e - this.BeginFrameTime) % b) * this.FramesPerSecond;
+            a = c < this.CurrentFrameNr
+        } else {
+            c = this.EndFrame - ((e - this.BeginFrameTime) % b) * -this.FramesPerSecond;
+            a = c > this.CurrentFrameNr
+        }
+        if (a && this.AnimationBlendingEnabled) {
+            this.startAnimationBlending(this.CurrentFrameNr)
+        }
+    } else {
+        if (this.FramesPerSecond > 0) {
+            d = (e - this.BeginFrameTime) * this.FramesPerSecond;
+            c = this.StartFrame + d;
+            if (c > this.EndFrame) {
+                c = this.EndFrame
+            }
+        } else {
+            d = (e - this.BeginFrameTime) * (-this.FramesPerSecond);
+            c = this.EndFrame - d;
+            if (c < this.StartFrame) {
+                c = this.StartFrame
+            }
+        }
+    }
+    return c
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.getFrameNr = function() {
+    return this.CurrentFrameNr
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.hasDynamicLightedMaterials = function() {
+    for (var a = 0; a < this.Materials.length; ++a) {
+        if (this.Materials[a].Lighting) {
+            return true
+        }
+    }
+    return false
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.calculateMeshForCurrentFrame = function() {
+    var d = this.Mesh;
+    if (!d) {
+        return
+    }
+    var b = false;
+    b = this.animateJointsWithCurrentBlendingSettings(this.getFrameNr());
+    if (b || d.skinDoesNotMatchJointPositions) {
+        d.skinMesh(this.hasDynamicLightedMaterials());
+        d.updateBoundingBox();
+        this.Box = d.getBoundingBox().clone();
+        for (var c = 0; c < d.LocalBuffers.length; ++c) {
+            var a = d.LocalBuffers[c];
+            a.update(true)
+        }
+    }
+    this.FrameWhenCurrentMeshWasGenerated = this.CurrentFrameNr
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.setMinimalUpdateDelay = function(a) {
+    this.MinimalUpdateDelay = a
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.OnAnimate = function(c, f) {
+    var b = false;
+    var a = CL3D.CLTimer.getTime();
+    if (this.LastLODSkinnedAnimationTime == 0 || a - this.LastLODSkinnedAnimationTime > this.MinimalUpdateDelay) {
+        var d = this.buildFrameNr(f);
+        b = this.CurrentFrameNr != d;
+        this.CurrentFrameNr = d;
+        this.LastLODSkinnedAnimationTime = a
+    }
+    var e = CL3D.SceneNode.prototype.OnAnimate.call(this, c, f);
+    if (this.AnimatedDummySceneNodes.length != 0) {
+        this.updatePositionsOfAttachedNodes()
+    }
+    return e
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.render = function(e) {
+    var c = this.scene.getCurrentCameraFrustrum();
+    if (c) {
+        if (!c.isBoxInside(this.getTransformedBoundingBox())) {
+            return
+        }
+    }
+    var h = this.Mesh;
+    if (h) {
+        e.setWorld(this.AbsoluteTransformation);
+        if (!h.isStatic()) {
+            this.calculateMeshForCurrentFrame()
+        }
+        this.WasAnimatedBefore = true;
+        var b = this.scene.getCurrentRenderMode() == CL3D.Scene.RENDER_MODE_SHADOW_BUFFER;
+        var f = e.isShadowMapEnabled();
+        for (var d = 0; d < h.LocalBuffers.length; ++d) {
+            var a = h.LocalBuffers[d];
+            if (d < this.Materials.length) {
+                a.Mat = this.Materials[d]
+            }
+            if (b || a.Mat.isTransparent() == (this.scene.getCurrentRenderMode() == CL3D.Scene.RENDER_MODE_TRANSPARENT)) {
+                if (a.Transformation != null) {
+                    e.setWorld(this.AbsoluteTransformation.multiply(a.Transformation))
+                }
+                if (!b) {
+                    if (!a.Mat.Lighting && f) {
+                        e.quicklyEnableShadowMap(false)
+                    }
+                    e.setMaterial(a.Mat)
+                } else {
+                    var g = a.Mat.Type;
+                    if (g == CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF_MOVING_GRASS) {
+                        this.scene.ShadowDrawMaterialAlphaRefMovingGrass.Tex1 = a.Mat.Tex1;
+                        e.setMaterial(this.scene.ShadowDrawMaterialAlphaRefMovingGrass)
+                    } else {
+                        if (g == CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF) {
+                            this.scene.ShadowDrawMaterialAlphaRef.Tex1 = a.Mat.Tex1;
+                            e.setMaterial(this.scene.ShadowDrawMaterialAlphaRef)
+                        } else {
+                            e.setMaterial(this.scene.ShadowDrawMaterialSolid)
+                        }
+                    }
+                }
+                e.drawMeshBuffer(a);
+                if (a.Transformation != null) {
+                    e.setWorld(this.AbsoluteTransformation)
+                }
+            }
+        }
+        if (f) {
+            e.quicklyEnableShadowMap(true)
+        }
+    }
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.ensureJointCopyArrayHasCorrectSize = function(a) {
+    var c = a.length;
+    if (c > this.JointStatesBeforeBlendingBegin.length) {
+        while (this.JointStatesBeforeBlendingBegin.length < c) {
+            var b = new Object();
+            b.Animatedposition = new CL3D.Vect3d(0, 0, 0);
+            b.Animatedscale = new CL3D.Vect3d(1, 1, 1);
+            b.Animatedrotation = new CL3D.Quaternion();
+            this.JointStatesBeforeBlendingBegin.push(b)
+        }
+    }
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.startAnimationBlending = function(c) {
+    if (!this.WasAnimatedBefore) {
+        return
+    }
+    var e = this.Mesh;
+    if (!e) {
+        return
+    }
+    this.animateJointsWithCurrentBlendingSettings(c);
+    this.BeginBlendTime = CL3D.CLTimer.getTime();
+    this.CurrentlyBlendingAnimation = true;
+    this.ensureJointCopyArrayHasCorrectSize(e.AllJoints);
+    for (var d = 0; d < e.AllJoints.length; ++d) {
+        var a = this.JointStatesBeforeBlendingBegin[d];
+        var b = e.AllJoints[d];
+        a.Animatedposition = b.Animatedposition.clone();
+        a.Animatedscale = b.Animatedscale.clone();
+        a.Animatedrotation = b.Animatedrotation.clone()
+    }
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.animateJointsWithCurrentBlendingSettings = function(b) {
+    var g = this.Mesh;
+    if (!g) {
+        return
+    }
+    var f = 1;
+    if (this.CurrentlyBlendingAnimation) {
+        var d = CL3D.CLTimer.getTime();
+        if ((d - this.BeginBlendTime) > this.BlendTimeMs) {
+            this.CurrentlyBlendingAnimation = false
+        } else {
+            f = (d - this.BeginBlendTime) / this.BlendTimeMs;
+            this.ensureJointCopyArrayHasCorrectSize(g.AllJoints);
+            for (var e = 0; e < g.AllJoints.length; ++e) {
+                var a = this.JointStatesBeforeBlendingBegin[e];
+                var c = g.AllJoints[e];
+                c.Animatedposition = a.Animatedposition.clone();
+                c.Animatedscale = a.Animatedscale.clone();
+                c.Animatedrotation = a.Animatedrotation.clone()
+            }
+        }
+    }
+    return g.animateMesh(b, f)
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.onDeserializedWithChildren = function() {
+    if (this.scene == null) {
+        return
+    }
+    for (var a = 0; a < this.AnimatedDummySceneNodes.length;) {
+        var b = 0;
+        var c = this.AnimatedDummySceneNodes[a].NodeIDToLink;
+        if (c != -1) {
+            b = this.scene.getSceneNodeFromIdImpl(this, c)
+        }
+        if (b && b.getType() == "dummytrans") {
+            this.AnimatedDummySceneNodes[a].Node = b;
+            ++a
+        } else {
+            this.AnimatedDummySceneNodes.splice(a, 1)
+        }
+    }
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.updatePositionsOfAttachedNodes = function() {
+    var d = this.Mesh;
+    if (!d || d.isStatic()) {
+        return
+    }
+    this.animateJointsWithCurrentBlendingSettings(this.getFrameNr());
+    d.buildAll_GlobalAnimatedMatrices(null, null);
+    var a = d.AllJoints;
+    for (var c = 0; c < this.AnimatedDummySceneNodes.length; ++c) {
+        var e = this.AnimatedDummySceneNodes[c];
+        if (e.JointIdx >= 0 && e.JointIdx < a.length && e.Node != null) {
+            var b = a[e.JointIdx];
+            if (b) {
+                e.Node.RelativeTransformationMatrix = b.GlobalAnimatedMatrix.clone()
+            }
+        }
+    }
+};
+
+CL3D.AnimatedMeshSceneNode.prototype.replaceAllReferencedNodes = function(b, c) {
+    for (var a = 0; a < this.AnimatedDummySceneNodes.length; ++a) {
+        if (this.AnimatedDummySceneNodes[a].Node == b) {
+            if (c && c.getType() == "dummytrans") {
+                this.AnimatedDummySceneNodes[a].Node = c
+            } else {
+                this.AnimatedDummySceneNodes[a].Node = null
+            }
+        }
+    }
+};

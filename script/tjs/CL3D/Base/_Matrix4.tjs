@@ -1,0 +1,669 @@
+CL3D.Matrix4 = _Matrix4;
+
+CL3D.Matrix4.member_list =
+[
+    "m00", "m01", "m02", "m03",
+    "m04", "m05", "m06", "m07",
+    "m08", "m09", "m10", "m11",
+    "m12", "m13", "m14", "m15",
+    "bIsIdentity",
+    "makeIdentity",
+    "isIdentity",
+    "isTranslateOnly",
+    "equals",
+    "getTranslation",
+    "getScale",
+    "rotateVect",
+    "rotateVect2",
+    "inverseRotateVect",
+    "getRotatedVect",
+    "getTransformedVect",
+    "transformVect",
+    "transformVect2",
+    "getTranslatedVect",
+    "translateVect",
+    "transformPlane",
+    "multiply",
+    "multiplyWith1x4Matrix",
+    "multiplyWith1x4Matrix2",
+    "getInverse",
+    "makeInverse",
+    "getTransposed",
+    "asArray",
+    "setByIndex",
+    "clone",
+    "copyTo",
+    "buildProjectionMatrixPerspectiveFovLH",
+    "buildProjectionMatrixPerspectiveOrthoLH",
+    "buildProjectionMatrixPerspectiveOrthoRH",
+    "buildCameraLookAtMatrixLH",
+    "setRotationDegrees",
+    "setRotationRadians",
+    "getRotationDegrees",
+    "setTranslation",
+    "setScale",
+    "setScaleXYZ",
+    "transformBoxEx",
+    "transformBoxEx2",
+    "toString"
+];
+
+class _Matrix4
+{
+    var m00, m01, m02, m03,
+        m04, m05, m06, m07,
+        m08, m09, m10, m11,
+        m12, m13, m14, m15;
+
+    var bIsIdentity;
+
+    function _Matrix4(a)
+    {
+        if (a == void) a = true;
+
+        this.m00 = 0;
+        this.m01 = 0;
+        this.m02 = 0;
+        this.m03 = 0;
+        this.m04 = 0;
+        this.m05 = 0;
+        this.m06 = 0;
+        this.m07 = 0;
+        this.m08 = 0;
+        this.m09 = 0;
+        this.m10 = 0;
+        this.m11 = 0;
+        this.m12 = 0;
+        this.m13 = 0;
+        this.m14 = 0;
+        this.m15 = 0;
+        this.bIsIdentity = false;
+        
+        if (a)
+        {
+            this.m00 = 1;
+            this.m05 = 1;
+            this.m10 = 1;
+            this.m15 = 1;
+            this.bIsIdentity = true;
+        }
+    }
+
+    function makeIdentity()
+    {
+        this.m00 = 1;
+        this.m01 = 0;
+        this.m02 = 0;
+        this.m03 = 0;
+        this.m04 = 0;
+        this.m05 = 1;
+        this.m06 = 0;
+        this.m07 = 0;
+        this.m08 = 0;
+        this.m09 = 0;
+        this.m10 = 1;
+        this.m11 = 0;
+        this.m12 = 0;
+        this.m13 = 0;
+        this.m14 = 0;
+        this.m15 = 1;
+        this.bIsIdentity = true;
+    }
+
+    function isIdentity()
+    {
+        if (this.bIsIdentity) return true;
+
+        this.bIsIdentity = (CL3D.isone(this.m00) && CL3D.iszero(this.m01) && CL3D.iszero(this.m02) && CL3D.iszero(this.m03) && CL3D.iszero(this.m04) && CL3D.isone(this.m05) && CL3D.iszero(this.m06) && CL3D.iszero(this.m07) && CL3D.iszero(this.m08) && CL3D.iszero(this.m09) && CL3D.isone(this.m10) && CL3D.iszero(this.m11) && CL3D.iszero(this.m12) && CL3D.iszero(this.m13) && CL3D.iszero(this.m14) && CL3D.isone(this.m15));
+
+        return this.bIsIdentity;
+    }
+
+    function isTranslateOnly()
+    {
+        if (this.bIsIdentity) return true;
+
+        return (CL3D.isone(this.m00) && CL3D.iszero(this.m01) && CL3D.iszero(this.m02) && CL3D.iszero(this.m03) && CL3D.iszero(this.m04) && CL3D.isone(this.m05) && CL3D.iszero(this.m06) && CL3D.iszero(this.m07) && CL3D.iszero(this.m08) && CL3D.iszero(this.m09) && CL3D.isone(this.m10) && CL3D.iszero(this.m11) && CL3D.isone(this.m15));
+    }
+
+    function equals(a)
+    {
+        return CL3D.equals(this.m00, a.m00) && CL3D.equals(this.m01, a.m01) && CL3D.equals(this.m02, a.m02) && CL3D.equals(this.m03, a.m03) && CL3D.equals(this.m04, a.m04) && CL3D.equals(this.m05, a.m05) && CL3D.equals(this.m06, a.m06) && CL3D.equals(this.m07, a.m07) && CL3D.equals(this.m08, a.m08) && CL3D.equals(this.m09, a.m09) && CL3D.equals(this.m10, a.m10) && CL3D.equals(this.m11, a.m11) && CL3D.equals(this.m12, a.m12) && CL3D.equals(this.m13, a.m13) && CL3D.equals(this.m14, a.m14) && CL3D.equals(this.m15, a.m15);   
+    }
+
+    function getTranslation()
+    {
+        return new CL3D.Vect3d(this.m12, this.m13, this.m14);
+    }
+
+    function getScale()
+    {
+        return new CL3D.Vect3d(this.m00, this.m05, this.m10);
+    }
+
+    function rotateVect(a)
+    {
+        var b = a.clone();
+        a.X = b.X * this.m00 + b.Y * this.m04 + b.Z * this.m08;
+        a.Y = b.X * this.m01 + b.Y * this.m05 + b.Z * this.m09;
+        a.Z = b.X * this.m02 + b.Y * this.m06 + b.Z * this.m10;
+    }
+
+    function rotateVect2(a, b)
+    {
+        a.X = b.X * this.m00 + b.Y * this.m04 + b.Z * this.m08;
+        a.Y = b.X * this.m01 + b.Y * this.m05 + b.Z * this.m09;
+        a.Z = b.X * this.m02 + b.Y * this.m06 + b.Z * this.m10;    
+    }
+
+    function inverseRotateVect(a)
+    {
+        var b = a.clone();
+        a.X = b.X * this.m00 + b.Y * this.m01 + b.Z * this.m02;
+        a.Y = b.X * this.m04 + b.Y * this.m05 + b.Z * this.m06;
+        a.Z = b.X * this.m08 + b.Y * this.m09 + b.Z * this.m10;        
+    }
+
+    function getRotatedVect(a)
+    {
+        return new CL3D.Vect3d(a.X * this.m00 + a.Y * this.m04 + a.Z * this.m08, a.X * this.m01 + a.Y * this.m05 + a.Z * this.m09, a.X * this.m02 + a.Y * this.m06 + a.Z * this.m10);
+    }
+
+    function getTransformedVect(a)
+    {
+        return new CL3D.Vect3d(a.X * this.m00 + a.Y * this.m04 + a.Z * this.m08 + this.m12, a.X * this.m01 + a.Y * this.m05 + a.Z * this.m09 + this.m13, a.X * this.m02 + a.Y * this.m06 + a.Z * this.m10 + this.m14);
+    };
+
+    function transformVect(c)
+    {
+        var b = c.X * this.m00 + c.Y * this.m04 + c.Z * this.m08 + this.m12;
+        var a = c.X * this.m01 + c.Y * this.m05 + c.Z * this.m09 + this.m13;
+        var d = c.X * this.m02 + c.Y * this.m06 + c.Z * this.m10 + this.m14;
+        c.X = b;
+        c.Y = a;
+        c.Z = d;
+    };
+
+    function transformVect2(a, b)
+    {
+        a.X = b.X * this.m00 + b.Y * this.m04 + b.Z * this.m08 + this.m12;
+        a.Y = b.X * this.m01 + b.Y * this.m05 + b.Z * this.m09 + this.m13;
+        a.Z = b.X * this.m02 + b.Y * this.m06 + b.Z * this.m10 + this.m14;
+    };
+
+    function getTranslatedVect(a)
+    {
+        return new CL3D.Vect3d(a.X + this.m12, a.Y + this.m13, a.Z + this.m14);
+    };
+
+    function translateVect(a)
+    {
+        a.X = a.X + this.m12;
+        a.Y = a.Y + this.m13;
+        a.Z = a.Z + this.m14;
+    };
+
+    function transformPlane(a)
+    {
+        var d = a.getMemberPoint();
+        this.transformVect(d);
+        var b = a.Normal.clone();
+        b.normalize();
+        var c = this.getScale();
+        if (!CL3D.equals(c.X, 0) && !CL3D.equals(c.Y, 0) && !CL3D.equals(c.Z, 0) && (!CL3D.equals(c.X, 1) || !CL3D.equals(c.Y, 1) || !CL3D.equals(c.Z, 1)))
+        {
+            b.X *= 1 / (c.X * c.X);
+            b.Y *= 1 / (c.Y * c.Y);
+            b.Z *= 1 / (c.Z * c.Z);
+        }
+        this.rotateVect(b);
+        b.normalize();
+        a.setPlane(d, b);
+    };
+
+    function multiply(a)
+    {
+        var b = new CL3D.Matrix4(false);
+        if (this.bIsIdentity)
+        {
+            a.copyTo(b);
+            return b;
+        }
+        if (a.bIsIdentity)
+        {
+            this.copyTo(b);
+            return b;
+        }
+
+        b.m00 = this.m00 * a.m00 + this.m04 * a.m01 + this.m08 * a.m02 + this.m12 * a.m03;
+        b.m01 = this.m01 * a.m00 + this.m05 * a.m01 + this.m09 * a.m02 + this.m13 * a.m03;
+        b.m02 = this.m02 * a.m00 + this.m06 * a.m01 + this.m10 * a.m02 + this.m14 * a.m03;
+        b.m03 = this.m03 * a.m00 + this.m07 * a.m01 + this.m11 * a.m02 + this.m15 * a.m03;
+        b.m04 = this.m00 * a.m04 + this.m04 * a.m05 + this.m08 * a.m06 + this.m12 * a.m07;
+        b.m05 = this.m01 * a.m04 + this.m05 * a.m05 + this.m09 * a.m06 + this.m13 * a.m07;
+        b.m06 = this.m02 * a.m04 + this.m06 * a.m05 + this.m10 * a.m06 + this.m14 * a.m07;
+        b.m07 = this.m03 * a.m04 + this.m07 * a.m05 + this.m11 * a.m06 + this.m15 * a.m07;
+        b.m08 = this.m00 * a.m08 + this.m04 * a.m09 + this.m08 * a.m10 + this.m12 * a.m11;
+        b.m09 = this.m01 * a.m08 + this.m05 * a.m09 + this.m09 * a.m10 + this.m13 * a.m11;
+        b.m10 = this.m02 * a.m08 + this.m06 * a.m09 + this.m10 * a.m10 + this.m14 * a.m11;
+        b.m11 = this.m03 * a.m08 + this.m07 * a.m09 + this.m11 * a.m10 + this.m15 * a.m11;
+        b.m12 = this.m00 * a.m12 + this.m04 * a.m13 + this.m08 * a.m14 + this.m12 * a.m15;
+        b.m13 = this.m01 * a.m12 + this.m05 * a.m13 + this.m09 * a.m14 + this.m13 * a.m15;
+        b.m14 = this.m02 * a.m12 + this.m06 * a.m13 + this.m10 * a.m14 + this.m14 * a.m15;
+        b.m15 = this.m03 * a.m12 + this.m07 * a.m13 + this.m11 * a.m14 + this.m15 * a.m15;
+
+        return b;
+    };
+
+    function multiplyWith1x4Matrix(a)
+    {
+        var b = a.clone();
+        b.W = a.W;
+        a.X = b.X * this.m00 + b.Y * this.m04 + b.Z * this.m08 + b.W * this.m12;
+        a.Y = b.X * this.m01 + b.Y * this.m05 + b.Z * this.m09 + b.W * this.m13;
+        a.Z = b.X * this.m02 + b.Y * this.m06 + b.Z * this.m10 + b.W * this.m14;
+        a.W = b.X * this.m03 + b.Y * this.m07 + b.Z * this.m11 + b.W * this.m15;
+    };
+
+    function multiplyWith1x4Matrix2(b)
+    {
+        var a = b.X;
+        var d = b.Y;
+        var c = b.Z;
+        b.X = a * this.m00 + d * this.m04 + c * this.m08 + this.m12;
+        b.Y = a * this.m01 + d * this.m05 + c * this.m09 + this.m13;
+        b.Z = a * this.m02 + d * this.m06 + c * this.m10 + this.m14;
+
+        return a * this.m03 + d * this.m07 + c * this.m11 + this.m15;
+    };
+
+    function getInverse(a)
+    {
+        if (this.bIsIdentity)
+        {
+            this.copyTo(a);
+            return true;
+        }
+        var b = (this.m00 * this.m05 - this.m01 * this.m04) * (this.m10 * this.m15 - this.m11 * this.m14) - (this.m00 * this.m06 - this.m02 * this.m04) * (this.m09 * this.m15 - this.m11 * this.m13) + (this.m00 * this.m07 - this.m03 * this.m04) * (this.m09 * this.m14 - this.m10 * this.m13) + (this.m01 * this.m06 - this.m02 * this.m05) * (this.m08 * this.m15 - this.m11 * this.m12) - (this.m01 * this.m07 - this.m03 * this.m05) * (this.m08 * this.m14 - this.m10 * this.m12) + (this.m02 * this.m07 - this.m03 * this.m06) * (this.m08 * this.m13 - this.m09 * this.m12);
+
+        if (b > -1e-7 && b < 1e-7) return false;
+
+        b = 1 / b;
+        a.m00 = b * (this.m05 * (this.m10 * this.m15 - this.m11 * this.m14) + this.m06 * (this.m11 * this.m13 - this.m09 * this.m15) + this.m07 * (this.m09 * this.m14 - this.m10 * this.m13));
+        a.m01 = b * (this.m09 * (this.m02 * this.m15 - this.m03 * this.m14) + this.m10 * (this.m03 * this.m13 - this.m01 * this.m15) + this.m11 * (this.m01 * this.m14 - this.m02 * this.m13));
+        a.m02 = b * (this.m13 * (this.m02 * this.m07 - this.m03 * this.m06) + this.m14 * (this.m03 * this.m05 - this.m01 * this.m07) + this.m15 * (this.m01 * this.m06 - this.m02 * this.m05));
+        a.m03 = b * (this.m01 * (this.m07 * this.m10 - this.m06 * this.m11) + this.m02 * (this.m05 * this.m11 - this.m07 * this.m09) + this.m03 * (this.m06 * this.m09 - this.m05 * this.m10));
+        a.m04 = b * (this.m06 * (this.m08 * this.m15 - this.m11 * this.m12) + this.m07 * (this.m10 * this.m12 - this.m08 * this.m14) + this.m04 * (this.m11 * this.m14 - this.m10 * this.m15));
+        a.m05 = b * (this.m10 * (this.m00 * this.m15 - this.m03 * this.m12) + this.m11 * (this.m02 * this.m12 - this.m00 * this.m14) + this.m08 * (this.m03 * this.m14 - this.m02 * this.m15));
+        a.m06 = b * (this.m14 * (this.m00 * this.m07 - this.m03 * this.m04) + this.m15 * (this.m02 * this.m04 - this.m00 * this.m06) + this.m12 * (this.m03 * this.m06 - this.m02 * this.m07));
+        a.m07 = b * (this.m02 * (this.m07 * this.m08 - this.m04 * this.m11) + this.m03 * (this.m04 * this.m10 - this.m06 * this.m08) + this.m00 * (this.m06 * this.m11 - this.m07 * this.m10));
+        a.m08 = b * (this.m07 * (this.m08 * this.m13 - this.m09 * this.m12) + this.m04 * (this.m09 * this.m15 - this.m11 * this.m13) + this.m05 * (this.m11 * this.m12 - this.m08 * this.m15));
+        a.m09 = b * (this.m11 * (this.m00 * this.m13 - this.m01 * this.m12) + this.m08 * (this.m01 * this.m15 - this.m03 * this.m13) + this.m09 * (this.m03 * this.m12 - this.m00 * this.m15));
+        a.m10 = b * (this.m15 * (this.m00 * this.m05 - this.m01 * this.m04) + this.m12 * (this.m01 * this.m07 - this.m03 * this.m05) + this.m13 * (this.m03 * this.m04 - this.m00 * this.m07));
+        a.m11 = b * (this.m03 * (this.m05 * this.m08 - this.m04 * this.m09) + this.m00 * (this.m07 * this.m09 - this.m05 * this.m11) + this.m01 * (this.m04 * this.m11 - this.m07 * this.m08));
+        a.m12 = b * (this.m04 * (this.m10 * this.m13 - this.m09 * this.m14) + this.m05 * (this.m08 * this.m14 - this.m10 * this.m12) + this.m06 * (this.m09 * this.m12 - this.m08 * this.m13));
+        a.m13 = b * (this.m08 * (this.m02 * this.m13 - this.m01 * this.m14) + this.m09 * (this.m00 * this.m14 - this.m02 * this.m12) + this.m10 * (this.m01 * this.m12 - this.m00 * this.m13));
+        a.m14 = b * (this.m12 * (this.m02 * this.m05 - this.m01 * this.m06) + this.m13 * (this.m00 * this.m06 - this.m02 * this.m04) + this.m14 * (this.m01 * this.m04 - this.m00 * this.m05));
+        a.m15 = b * (this.m00 * (this.m05 * this.m10 - this.m06 * this.m09) + this.m01 * (this.m06 * this.m08 - this.m04 * this.m10) + this.m02 * (this.m04 * this.m09 - this.m05 * this.m08));
+        a.bIsIdentity = this.bIsIdentity;
+
+        return true;
+    };
+
+    function makeInverse()
+    {
+        var a = new CL3D.Matrix4(false);
+        if (this.getInverse(a))
+        {
+            a.copyTo(this);
+            return true;
+        }
+
+        return false;
+    };
+
+    function getTransposed()
+    {
+        var a = new CL3D.Matrix4(false);
+        a.m00 = this.m00;
+        a.m01 = this.m04;
+        a.m02 = this.m08;
+        a.m03 = this.m12;
+        a.m04 = this.m01;
+        a.m05 = this.m05;
+        a.m06 = this.m09;
+        a.m07 = this.m13;
+        a.m08 = this.m02;
+        a.m09 = this.m06;
+        a.m10 = this.m10;
+        a.m11 = this.m14;
+        a.m12 = this.m03;
+        a.m13 = this.m07;
+        a.m14 = this.m11;
+        a.m15 = this.m15;
+        a.bIsIdentity = this.bIsIdentity;
+
+        return a;
+    };
+
+    function asArray()
+    {
+        return [this.m00, this.m01, this.m02, this.m03, this.m04, this.m05, this.m06, this.m07, this.m08, this.m09, this.m10, this.m11, this.m12, this.m13, this.m14, this.m15];
+    };
+
+    function setByIndex(a, b)
+    {
+        this.bIsIdentity = false;
+        switch (a)
+        {
+            case 0:
+                this.m00 = b;
+                break;
+            case 1:
+                this.m01 = b;
+                break;
+            case 2:
+                this.m02 = b;
+                break;
+            case 3:
+                this.m03 = b;
+                break;
+            case 4:
+                this.m04 = b;
+                break;
+            case 5:
+                this.m05 = b;
+                break;
+            case 6:
+                this.m06 = b;
+                break;
+            case 7:
+                this.m07 = b;
+                break;
+            case 8:
+                this.m08 = b;
+                break;
+            case 9:
+                this.m09 = b;
+                break;
+            case 10:
+                this.m10 = b;
+                break;
+            case 11:
+                this.m11 = b;
+                break;
+            case 12:
+                this.m12 = b;
+                break;
+            case 13:
+                this.m13 = b;
+                break;
+            case 14:
+                this.m14 = b;
+                break;
+            case 15:
+                this.m15 = b;
+                break;
+        }
+    };
+
+    function clone()
+    {
+        var inst = new CL3D.Matrix4(false);
+        this.copyTo(inst);
+        return inst;
+    };
+
+    function copyTo(a)
+    {
+        a.m00 = this.m00;
+        a.m01 = this.m01;
+        a.m02 = this.m02;
+        a.m03 = this.m03;
+        a.m04 = this.m04;
+        a.m05 = this.m05;
+        a.m06 = this.m06;
+        a.m07 = this.m07;
+        a.m08 = this.m08;
+        a.m09 = this.m09;
+        a.m10 = this.m10;
+        a.m11 = this.m11;
+        a.m12 = this.m12;
+        a.m13 = this.m13;
+        a.m14 = this.m14;
+        a.m15 = this.m15;
+        a.bIsIdentity = this.bIsIdentity;
+    };
+
+    function buildProjectionMatrixPerspectiveFovLH(e, d, f, c)
+    {
+        var b = 1 / Math.tan(e / 2);
+        var a = (b / d);
+        this.m00 = a;
+        this.m01 = 0;
+        this.m02 = 0;
+        this.m03 = 0;
+        this.m04 = 0;
+        this.m05 = b;
+        this.m06 = 0;
+        this.m07 = 0;
+        this.m08 = 0;
+        this.m09 = 0;
+        this.m10 = (c / (c - f));
+        this.m11 = 1;
+        this.m12 = 0;
+        this.m13 = 0;
+        this.m14 = (-f * c / (c - f));
+        this.m15 = 0;
+        this.bIsIdentity = false;
+    };
+
+    function buildProjectionMatrixPerspectiveOrthoLH(d, b, c, a)
+    {
+        this.m00 = 2 / d;
+        this.m01 = 0;
+        this.m02 = 0;
+        this.m03 = 0;
+        this.m04 = 0;
+        this.m05 = 2 / b;
+        this.m06 = 0;
+        this.m07 = 0;
+        this.m08 = 0;
+        this.m09 = 0;
+        this.m10 = 1 / (a - c);
+        this.m11 = 0;
+        this.m12 = 0;
+        this.m13 = 0;
+        this.m14 = (c / (c - a));
+        this.m15 = 1;
+        this.bIsIdentity = false;
+    };
+
+    function buildProjectionMatrixPerspectiveOrthoRH(d, b, c, a)
+    {
+        this.m00 = 2 / d;
+        this.m01 = 0;
+        this.m02 = 0;
+        this.m03 = 0;
+        this.m04 = 0;
+        this.m05 = 2 / b;
+        this.m06 = 0;
+        this.m07 = 0;
+        this.m08 = 0;
+        this.m09 = 0;
+        this.m10 = 1 / (c - a);
+        this.m11 = 0;
+        this.m12 = 0;
+        this.m13 = 0;
+        this.m14 = (c / (c - a));
+        this.m15 = 1;
+        this.bIsIdentity = false;
+    };
+
+    function buildCameraLookAtMatrixLH(b, e, d)
+    {
+        var a = e.substract(b);
+        a.normalize();
+        var f = d.crossProduct(a);
+        f.normalize();
+        var c = a.crossProduct(f);
+        this.m00 = f.X;
+        this.m01 = c.X;
+        this.m02 = a.X;
+        this.m03 = 0;
+        this.m04 = f.Y;
+        this.m05 = c.Y;
+        this.m06 = a.Y;
+        this.m07 = 0;
+        this.m08 = f.Z;
+        this.m09 = c.Z;
+        this.m10 = a.Z;
+        this.m11 = 0;
+        this.m12 = -f.dotProduct(b);
+        this.m13 = -c.dotProduct(b);
+        this.m14 = -a.dotProduct(b);
+        this.m15 = 1;
+        this.bIsIdentity = false;
+    };
+
+    function setRotationDegrees(a)
+    {
+        this.setRotationRadians(a.multiplyWithScal(CL3D.DEGTORAD));
+    };
+
+    function setRotationRadians(i)
+    {
+        var e = Math.cos(i.X);
+        var a = Math.sin(i.X);
+        var f = Math.cos(i.Y);
+        var c = Math.sin(i.Y);
+        var d = Math.cos(i.Z);
+        var g = Math.sin(i.Z);
+        this.m00 = (f * d);
+        this.m01 = (f * g);
+        this.m02 = (-c);
+        var h = a * c;
+        var b = e * c;
+        this.m04 = (h * d - e * g);
+        this.m05 = (h * g + e * d);
+        this.m06 = (a * f);
+        this.m08 = (b * d + a * g);
+        this.m09 = (b * g - a * d);
+        this.m10 = (e * f);
+        this.bIsIdentity = false;
+    };
+
+    function getRotationDegrees()
+    {
+        var f = -Math.asin(this.m02);
+        var e = Math.cos(f);
+        f *= CL3D.RADTODEG;
+        var c;
+        var a;
+        var g;
+        var d;
+        if (Math.abs(e) > 1e-8)
+        {
+            var b = (1 / e);
+            c = this.m10 * b;
+            a = this.m06 * b;
+            g = Math.atan2(a, c) * CL3D.RADTODEG;
+            c = this.m00 * b;
+            a = this.m01 * b;
+            d = Math.atan2(a, c) * CL3D.RADTODEG;
+        }
+        else
+        {
+            g = 0;
+            c = this.m05;
+            a = -this.m04;
+            d = Math.atan2(a, c) * CL3D.RADTODEG;
+        }
+        if (g < 0) g += 360;
+        if (f < 0) f += 360;
+        if (d < 0) d += 360;
+
+        return new CL3D.Vect3d(g, f, d);
+    };
+
+    function setTranslation(a)
+    {
+        this.m12 = a.X;
+        this.m13 = a.Y;
+        this.m14 = a.Z;
+        this.bIsIdentity = false;
+    };
+
+    function setScale(a)
+    {
+        this.m00 = a.X;
+        this.m05 = a.Y;
+        this.m10 = a.Z;
+        this.bIsIdentity = false;
+    };
+
+    function setScaleXYZ(a, c, b)
+    {
+        this.m00 = a;
+        this.m05 = c;
+        this.m10 = b;
+        this.bIsIdentity = false;
+    };
+
+    function transformBoxEx(d)
+    {
+        var b = d.getEdges();
+        var c;
+        for (c = 0; c < 8; ++c)
+        {
+            this.transformVect(b[c]);
+        }
+
+        var a = b[0];
+        d.MinEdge = a.clone();
+        d.MaxEdge = a.clone();
+        for (c = 1; c < 8; ++c)
+        {
+            d.addInternalPointByVector(b[c]);
+        }
+    };
+
+    function transformBoxEx2(h)
+    {
+        var f = [h.MinEdge.X, h.MinEdge.Y, h.MinEdge.Z];
+        var n = [h.MaxEdge.X, h.MaxEdge.Y, h.MaxEdge.Z];
+        var d = [this.m12, this.m13, this.m14];
+        var k = [this.m12, this.m13, this.m14];
+        var c = this.asArray();
+        for (var g = 0; g < 3; ++g)
+        {
+            for (var e = 0; e < 3; ++e)
+            {
+                var o = c[e * 4 + g];
+                var m = o * f[e];
+                var l = o * n[e];
+                if (m < l)
+                {
+                    d[g] += m;
+                    k[g] += l;
+                }
+                else
+                {
+                    d[g] += l;
+                    k[g] += m;
+                }
+            }
+        }
+        h.MinEdge.X = d[0];
+        h.MinEdge.Y = d[1];
+        h.MinEdge.Z = d[2];
+        h.MaxEdge.X = k[0];
+        h.MaxEdge.Y = k[1];
+        h.MaxEdge.Z = k[2];
+    };
+
+    function toString()
+    {
+        return this.m00 + " " + this.m01 + " " + this.m02 + " " + this.m03 + "\n" + this.m04 + " " + this.m05 + " " + this.m06 + " " + this.m07 + "\n" + this.m08 + " " + this.m09 + " " + this.m10 + " " + this.m11 + "\n" + this.m12 + " " + this.m13 + " " + this.m14 + " " + this.m15;
+    }
+};

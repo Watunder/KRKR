@@ -1,0 +1,368 @@
+CL3D.ParticleSystemSceneNode = function() {
+    this.init();
+    this.Box = new CL3D.Box3d();
+    this.Buffer = new CL3D.MeshBuffer();
+    this.Direction = new CL3D.Vect3d(0, -0.03, 0);
+    this.EmittArea = new CL3D.Vect3d(0, 0, 0);
+    this.LastEmitTime = 0;
+    this.TimeSinceLastEmitting = 0;
+    this.Particles = new Array()
+};
+
+CL3D.ParticleSystemSceneNode.prototype = new CL3D.SceneNode();
+CL3D.ParticleSystemSceneNode.prototype.Direction = null;
+CL3D.ParticleSystemSceneNode.prototype.MaxAngleDegrees = 10;
+CL3D.ParticleSystemSceneNode.prototype.EmittArea = null;
+CL3D.ParticleSystemSceneNode.prototype.MinLifeTime = 1000;
+CL3D.ParticleSystemSceneNode.prototype.MaxLifeTime = 2000;
+CL3D.ParticleSystemSceneNode.prototype.MaxParticles = 200;
+CL3D.ParticleSystemSceneNode.prototype.MinParticlesPerSecond = 10;
+CL3D.ParticleSystemSceneNode.prototype.MaxParticlesPerSecond = 20;
+CL3D.ParticleSystemSceneNode.prototype.MinStartColor = 4278190080;
+CL3D.ParticleSystemSceneNode.prototype.MaxStartColor = 4294967295;
+CL3D.ParticleSystemSceneNode.prototype.MinStartSizeX = 5;
+CL3D.ParticleSystemSceneNode.prototype.MinStartSizeY = 5;
+CL3D.ParticleSystemSceneNode.prototype.MaxStartSizeX = 7;
+CL3D.ParticleSystemSceneNode.prototype.MaxStartSizeY = 7;
+CL3D.ParticleSystemSceneNode.prototype.FadeOutAffector = false;
+CL3D.ParticleSystemSceneNode.prototype.FadeOutTime = 500;
+CL3D.ParticleSystemSceneNode.prototype.FadeTargetColor = 0;
+CL3D.ParticleSystemSceneNode.prototype.GravityAffector = false;
+CL3D.ParticleSystemSceneNode.prototype.GravityAffectingTime = 500;
+CL3D.ParticleSystemSceneNode.prototype.Gravity = null;
+CL3D.ParticleSystemSceneNode.prototype.ScaleAffector = false;
+CL3D.ParticleSystemSceneNode.prototype.ScaleToX = 20;
+CL3D.ParticleSystemSceneNode.prototype.ScaleToY = 20;
+CL3D.ParticleSystemSceneNode.prototype.DisableFog = false;
+CL3D.ParticleSystemSceneNode.prototype.createClone = function(b, a, e) {
+    var d = new CL3D.ParticleSystemSceneNode();
+    this.cloneMembers(d, b, a, e);
+    if (this.Box) {
+        d.Box = this.Box.clone()
+    }
+    d.Direction = this.Direction.clone();
+    d.MaxAngleDegrees = this.MaxAngleDegrees;
+    d.EmittArea = this.EmittArea.clone();
+    d.MinLifeTime = this.MinLifeTime;
+    d.MaxLifeTime = this.MaxLifeTime;
+    d.MaxParticles = this.MaxParticles;
+    d.MinParticlesPerSecond = this.MinParticlesPerSecond;
+    d.MaxParticlesPerSecond = this.MaxParticlesPerSecond;
+    d.MinStartColor = this.MinStartColor;
+    d.MaxStartColor = this.MaxStartColor;
+    d.MinStartSizeX = this.MinStartSizeX;
+    d.MinStartSizeY = this.MinStartSizeY;
+    d.MaxStartSizeX = this.MaxStartSizeX;
+    d.MaxStartSizeY = this.MaxStartSizeY;
+    d.FadeOutAffector = true;
+    d.FadeOutTime = this.FadeOutTime;
+    d.FadeTargetColor = this.FadeTargetColor;
+    d.GravityAffector = this.GravityAffector;
+    d.GravityAffectingTime = this.GravityAffectingTime;
+    d.Gravity = this.Gravity;
+    d.ScaleAffector = this.ScaleAffector;
+    d.ScaleToX = this.ScaleToX;
+    d.ScaleToY = this.ScaleToY;
+    d.Buffer.Mat = this.Buffer.Mat.clone();
+    return d
+};
+
+CL3D.ParticleSystemSceneNode.prototype.getBoundingBox = function() {
+    return this.Box
+};
+
+CL3D.ParticleSystemSceneNode.prototype.getType = function() {
+    return "particlesystem"
+};
+
+CL3D.ParticleSystemSceneNode.prototype.OnRegisterSceneNode = function(a) {
+    if (this.Visible) {
+        a.registerNodeForRendering(this, this.Buffer.Mat.isTransparent() ? CL3D.Scene.RENDER_MODE_TRANSPARENT : CL3D.Scene.RENDER_MODE_DEFAULT);
+        CL3D.SceneNode.prototype.OnRegisterSceneNode.call(this, a)
+    }
+};
+
+CL3D.ParticleSystemSceneNode.prototype.getMaterialCount = function() {
+    return 1
+};
+
+CL3D.ParticleSystemSceneNode.prototype.getMaterial = function(a) {
+    return this.Buffer.Mat
+};
+
+CL3D.ParticleSystemSceneNode.prototype.OnAnimate = function(b, c) {
+    var a = false;
+    if (this.Visible) {
+        a = this.doParticleSystem(c)
+    }
+    return CL3D.SceneNode.prototype.OnAnimate.call(this, b, c) || a
+};
+
+CL3D.ParticleSystemSceneNode.prototype.OnRegisterSceneNode = function(a) {
+    if (this.Visible) {
+        if (this.Particles.length != 0) {
+            a.registerNodeForRendering(this, this.Buffer.Mat.isTransparent() ? CL3D.Scene.RENDER_MODE_TRANSPARENT : CL3D.Scene.RENDER_MODE_DEFAULT)
+        }
+        CL3D.SceneNode.prototype.OnRegisterSceneNode.call(this, a)
+    }
+};
+
+CL3D.ParticleSystemSceneNode.prototype.render = function(k) {
+    var a = this.scene.getActiveCamera();
+    if (!a) {
+        return
+    }
+    if (this.Particles.length == 0) {
+        return
+    }
+    var l = k.FogEnabled;
+    if (this.DisableFog) {
+        k.FogEnabled = false
+    }
+    var j = k.isShadowMapEnabled();
+    k.quicklyEnableShadowMap(false);
+    this.reallocateBuffers();
+    var c = k.getView();
+    var n = new CL3D.Vect3d(-c.m02, -c.m06, -c.m10);
+    var o = 0;
+    var p = null;
+    for (var e = 0; e < this.Particles.length; ++e) {
+        var h = this.Particles[e];
+        var g = 0.5 * h.sizeX;
+        var b = new CL3D.Vect3d(c.m00 * g, c.m04 * g, c.m08 * g);
+        g = -0.5 * h.sizeY;
+        var d = new CL3D.Vect3d(c.m01 * g, c.m05 * g, c.m09 * g);
+        var r = CL3D.createColor(CL3D.getAlpha(h.color), CL3D.getRed(h.color) / 4, CL3D.getGreen(h.color) / 4, CL3D.getBlue(h.color) / 4);
+        p = this.Buffer.Vertices[0 + o];
+        p.Pos = h.pos.add(b).add(d);
+        p.Color = r;
+        p.Normal = n;
+        p = this.Buffer.Vertices[1 + o];
+        p.Pos = h.pos.add(b).substract(d);
+        p.Color = r;
+        p.Normal = n;
+        p = this.Buffer.Vertices[2 + o];
+        p.Pos = h.pos.substract(b).substract(d);
+        p.Color = r;
+        p.Normal = n;
+        p = this.Buffer.Vertices[3 + o];
+        p.Pos = h.pos.substract(b).add(d);
+        p.Color = r;
+        p.Normal = n;
+        o += 4
+    }
+    var q = new CL3D.Matrix4(true);
+    k.setWorld(q);
+    this.Buffer.update(false, true);
+    k.setMaterial(this.Buffer.Mat);
+    k.drawMeshBuffer(this.Buffer, this.Particles.length * 2 * 3);
+    if (this.DisableFog) {
+        k.FogEnabled = l
+    }
+    if (j) {
+        k.quicklyEnableShadowMap(true)
+    }
+};
+
+CL3D.ParticleSystemSceneNode.prototype.doParticleSystem = function(d) {
+    if (this.LastEmitTime == 0) {
+        this.LastEmitTime = d;
+        return false
+    }
+    var b = d;
+    var j = d - this.LastEmitTime;
+    this.LastEmitTime = d;
+    if (!this.Visible) {
+        return false
+    }
+    var f = false;
+    f = this.emit(d, j);
+    f = this.affect(d, j) || f;
+    var k = this.AbsoluteTransformation.getTranslation();
+    this.Buffer.Box.reset(k.X, k.Y, k.Z);
+    var e = j;
+    if (this.Particles.length != 0) {
+        f = true
+    }
+    for (var g = 0; g < this.Particles.length;) {
+        var a = this.Particles[g];
+        if (b > a.endTime) {
+            this.Particles.splice(g, 1)
+        } else {
+            a.pos.addToThis(a.vector.multiplyWithScal(e));
+            this.Buffer.Box.addInternalPointByVector(a.pos);
+            ++g
+        }
+    }
+    var c = this.MaxStartSizeX * 0.5;
+    this.Buffer.Box.MaxEdge.X += c;
+    this.Buffer.Box.MaxEdge.Y += c;
+    this.Buffer.Box.MaxEdge.Z += c;
+    this.Buffer.Box.MinEdge.X -= c;
+    this.Buffer.Box.MinEdge.Y -= c;
+    this.Buffer.Box.MinEdge.Z -= c;
+    var h = new CL3D.Matrix4(false);
+    this.AbsoluteTransformation.getInverse(h);
+    h.transformBoxEx(this.Buffer.Box);
+    return f
+};
+
+CL3D.ParticleSystemSceneNode.prototype.emit = function(b, r) {
+    var g = (this.MaxParticlesPerSecond - this.MinParticlesPerSecond);
+    var e = g ? (this.MinParticlesPerSecond + (Math.random() * g)) : this.MinParticlesPerSecond;
+    var d = 1000 / e;
+    var o = this.Particles.length;
+    this.TimeSinceLastEmitting += r;
+    if (this.TimeSinceLastEmitting <= d) {
+        return false
+    }
+    var l = ((this.TimeSinceLastEmitting / d) + 0.5);
+    this.TimeSinceLastEmitting = 0;
+    if (o + l > this.MaxParticles) {
+        var s = (o + l) - this.MaxParticles;
+        l -= s
+    }
+    if (l <= 0) {
+        return false
+    }
+    var k = this.Direction.clone();
+    this.AbsoluteTransformation.rotateVect(k);
+    var q = this.AbsoluteTransformation.getScale().getLength();
+    var n = this.EmittArea.equalsZero();
+    for (var j = o; j < o + l; ++j) {
+        var a = new CL3D.Particle();
+        a.pos = new CL3D.Vect3d(0, 0, 0);
+        if (!n) {
+            if (this.EmittArea.X != 0) {
+                a.pos.X = (Math.random() * this.EmittArea.X) - this.EmittArea.X * 0.5
+            }
+            if (this.EmittArea.Y != 0) {
+                a.pos.Y = (Math.random() * this.EmittArea.Y) - this.EmittArea.Y * 0.5
+            }
+            if (this.EmittArea.Z != 0) {
+                a.pos.Z = (Math.random() * this.EmittArea.Z) - this.EmittArea.Z * 0.5
+            }
+        }
+        a.startTime = b;
+        a.vector = k.clone();
+        if (this.MaxAngleDegrees) {
+            var c = k.clone();
+            c.rotateXYBy((Math.random() * this.MaxAngleDegrees * 2) - this.MaxAngleDegrees);
+            c.rotateYZBy((Math.random() * this.MaxAngleDegrees * 2) - this.MaxAngleDegrees);
+            c.rotateXZBy((Math.random() * this.MaxAngleDegrees * 2) - this.MaxAngleDegrees);
+            a.vector = c
+        }
+        if (this.MaxLifeTime - this.MinLifeTime == 0) {
+            a.endTime = b + this.MinLifeTime
+        } else {
+            a.endTime = b + this.MinLifeTime + (Math.random() * (this.MaxLifeTime - this.MinLifeTime))
+        }
+        a.color = CL3D.getInterpolatedColor(this.MinStartColor, this.MaxStartColor, (Math.random() * 100) / 100);
+        a.startColor = a.color;
+        a.startVector = a.vector.clone();
+        if (this.MinStartSizeX == this.MaxStartSizeX && this.MinStartSizeY == this.MaxStartSizeY) {
+            a.startSizeX = this.MinStartSizeX;
+            a.startSizeY = this.MinStartSizeY
+        } else {
+            var m = (Math.random() * 100) / 100;
+            var h = 1 - m;
+            a.startSizeX = this.MinStartSizeX * m + this.MaxStartSizeX * h;
+            a.startSizeY = this.MinStartSizeY * m + this.MaxStartSizeY * h
+        }
+        a.startSizeX *= q;
+        a.startSizeY *= q;
+        a.sizeX = a.startSizeX;
+        a.sizeY = a.startSizeY;
+        this.AbsoluteTransformation.transformVect(a.pos);
+        this.Particles.unshift(a)
+    }
+    return true
+};
+
+CL3D.ParticleSystemSceneNode.prototype.affect = function(b, m) {
+    if (!this.FadeOutAffector && !this.GravityAffector && !this.ScaleAffector) {
+        return false
+    }
+    var e = 0;
+    var a = null;
+    if (this.FadeOutAffector) {
+        for (e = 0; e < this.Particles.length; ++e) {
+            a = this.Particles[e];
+            if (a.endTime - b < this.FadeOutTime) {
+                var j = (a.endTime - b) / this.FadeOutTime;
+                a.color = CL3D.getInterpolatedColor(a.startColor, this.FadeTargetColor, j)
+            }
+        }
+    }
+    if (this.GravityAffector) {
+        var h = this.Gravity.multiplyWithVect(this.AbsoluteTransformation.getScale());
+        for (e = 0; e < this.Particles.length; ++e) {
+            a = this.Particles[e];
+            var n = (b - a.startTime) / this.GravityAffectingTime;
+            n = CL3D.clamp(n, 0, 1);
+            n = 1 - n;
+            a.vector = a.startVector.getInterpolated(h, n)
+        }
+    }
+    if (this.ScaleAffector) {
+        var k = this.AbsoluteTransformation.getScale().X;
+        for (e = 0; e < this.Particles.length; ++e) {
+            a = this.Particles[e];
+            var c = a.endTime - a.startTime;
+            var f = b - a.startTime;
+            var l = f / c;
+            a.sizeX = a.startSizeX + this.ScaleToX * l * k;
+            a.sizeY = a.startSizeY + this.ScaleToY * l * k
+        }
+    }
+    return true
+};
+
+CL3D.ParticleSystemSceneNode.prototype.reallocateBuffers = function() {
+    if (this.Particles.length * 4 > this.Buffer.Vertices.length || this.Particles.length * 6 > this.Buffer.Indices.length) {
+        var g = this.Buffer.Vertices.length;
+        var f = this.Buffer.Vertices;
+        while (this.Buffer.Vertices.length < this.Particles.length * 4) {
+            var b = null;
+            b = new CL3D.Vertex3D(true);
+            b.TCoords.set(0, 0);
+            f.push(b);
+            b = new CL3D.Vertex3D(true);
+            b.TCoords.set(0, 1);
+            f.push(b);
+            b = new CL3D.Vertex3D(true);
+            b.TCoords.set(1, 1);
+            f.push(b);
+            b = new CL3D.Vertex3D(true);
+            b.TCoords.set(1, 0);
+            f.push(b)
+        }
+        var e = this.Buffer.Indices.length;
+        var h = g;
+        var d = this.Particles.length * 6;
+        var a = this.Buffer.Indices;
+        for (var c = e; c < d; c += 6) {
+            a.push(0 + h);
+            a.push(2 + h);
+            a.push(1 + h);
+            a.push(0 + h);
+            a.push(3 + h);
+            a.push(2 + h);
+            h += 4
+        }
+    }
+};
+
+CL3D.Particle = function(a) {
+    this.pos = null;
+    this.vector = null;
+    this.startTime = 0;
+    this.endTime = 0;
+    this.color = 0;
+    this.startColor = 0;
+    this.startVector = null;
+    this.sizeX = 0;
+    this.sizeY = 0;
+    this.startSizeX = 0;
+    this.startSizeY = 0
+};

@@ -1,0 +1,86 @@
+CL3D.CCFileLoader = _CCFileLoader;
+
+class _CCFileLoader
+{
+    var FileToLoad;
+    var useArrayBufferReturn;
+    var xmlhttp = false;
+
+    function _CCFileLoader(a, c)
+    {
+        this.FileToLoad = a;
+        this.useArrayBufferReturn = c;
+        if (!this.xmlhttp && typeof XMLHttpRequest != "undefined")
+        {
+            try this.xmlhttp = new XMLHttpRequest();
+            catch (b) this.xmlhttp = false;
+        }
+        if (!this.xmlhttp && window.createRequest)
+        {
+            try this.xmlhttp = window.createRequest();
+            catch (b) this.xmlhttp = false;
+        }
+    }
+
+    function load(f, g)
+    {
+        if (this.xmlhttp == false)
+        {
+            CL3D.gCCDebugOutput.printError("Your browser doesn't support AJAX");
+            return;
+        }
+        var h = this;
+        try {
+            this.xmlhttp.open("GET", this.FileToLoad, true);
+            if (this.useArrayBufferReturn) this.xmlhttp.responseType = "arraybuffer";
+        }
+        catch (i)
+        {
+            if (g) g(i.message);
+            }
+            else
+            {
+                CL3D.gCCDebugOutput.printError("Could not open file " + this.FileToLoad + ": " + i.message);
+                var d = navigator.appVersion;
+                if (d != null && d.indexOf("Trident") != -1)
+                {
+                    CL3D.gCCDebugOutput.printError("<i>Use a web server to run files in IE. Or start them from CopperCube.</i>", true);
+                }
+            }
+            return;
+        }
+        this.xmlhttp.onreadystatechange = function()
+        {
+            if (h.xmlhttp.readyState == 4)
+            {
+                var e = false;
+                if (h.xmlhttp.status != 200 && h.xmlhttp.status != 0 && h.xmlhttp.status != null) {
+                    if (g)
+                    {
+                        g("");
+                        e = true;
+                    }
+                    else
+                    {
+                        CL3D.gCCDebugOutput.printError("Could not open file " + h.FileToLoad + " (status:" + h.xmlhttp.status + ")");
+                    }
+                }
+                if (!e && f) f(h.xmlhttp.response);
+            }
+        };
+
+        try this.xmlhttp.send(null);
+        catch (i)
+        {
+            if (g) g("");
+            else CL3D.gCCDebugOutput.printError("Could not open file " + h.FileToLoad);
+            return;
+        }
+    };
+
+    function abort()
+    {
+        try this.xmlhttp.abort();
+        catch (d) {};
+    }
+};

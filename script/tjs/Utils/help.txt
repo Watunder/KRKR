@@ -1,0 +1,12 @@
+FUNCTIONNAME = "(?<=CL3D.CLASSNAME.prototype.).*?(?= = function[(])"
+FUNCTIONPARAM = "(?<=CL3D.Matrix4.prototype.FUNCTIONNAME = function[(]).*?(?=[)])"
+
+class CLASSNAME
+{
+    function FUNCTIONNAME(FUNCTIONPARAM )
+    {
+        "(?<=CL3D.CLASSNAME.prototype.FUNCTIONNAME.*([{]\n))(\n|.)*?(?=[}])";
+    }
+};
+
+(?=\t)(.\n|)//

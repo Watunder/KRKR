@@ -1,0 +1,118 @@
+CL3D.Triangle3d = _Triangle3d;
+
+CL3D.Triangle3d.member_list =
+[
+    "PointA",
+    "PointB",
+    "PointC",
+    "clone",
+    "getPlane",
+    "isPointInsideFast",
+    "isPointInside",
+    "isOnSameSide",
+    "getNormal",
+    "getIntersectionOfPlaneWithLine",
+    "getIntersectionWithLine",
+    "isTotalInsideBox",
+    "copyTo"
+];
+
+class _Triangle3d
+{
+    var pointA = new CL3D.Vect3d();
+    var pointB = new CL3D.Vect3d();
+    var pointC = new CL3D.Vect3d();
+
+    function _Triangle3d(e, d, f)
+    {
+        if (e !== void) this.pointA = e;
+        if (d !== void) this.pointB = d;
+        if (f !== void) this.pointC = f;
+    }
+
+    function clone()
+    {
+        return new CL3D.Triangle3d(this.pointA, this.pointB, this.pointC);
+    };
+
+    function getPlane()
+    {
+        var a = new CL3D.Plane3d(false);
+        a.setPlaneFrom3Points(this.pointA, this.pointB, this.pointC);
+
+        return a;
+    };
+
+    function isPointInsideFast(j)
+    {
+        var l = this.pointB.substract(this.pointA);
+        var k = this.pointC.substract(this.pointA);
+        var u = l.dotProduct(l);
+        var s = l.dotProduct(k);
+        var q = k.dotProduct(k);
+        var i = j.substract(this.pointA);
+        var n = i.dotProduct(l);
+        var m = i.dotProduct(k);
+        var t = (n * q) - (m * s);
+        var r = (m * u) - (n * s);
+        var h = (u * q) - (s * s);
+        var o = t + r - h;
+
+        return (o < 0) && !((t < 0) || (r < 0));
+    };
+
+    function isPointInside(a)
+    {
+        return (this.isOnSameSide(a, this.pointA, this.pointB, this.pointC) && this.isOnSameSide(a, this.pointB, this.pointA, this.pointC) && this.isOnSameSide(a, this.pointC, this.pointA, this.pointB));
+    };
+
+    function isOnSameSide(i, g, d, c)
+    {
+        var e = c.substract(d);
+        var h = e.crossProduct(i.substract(d));
+        var f = e.crossProduct(g.substract(d));
+
+        return (h.dotProduct(f) >= 0);
+    };
+
+    function getNormal()
+    {
+        return this.pointB.substract(this.pointA).crossProduct(this.pointC.substract(this.pointA));
+    };
+
+    function getIntersectionOfPlaneWithLine(c, f)
+    {
+        var e = this.getNormal();
+        e.normalize();
+        var b = e.dotProduct(f);
+
+        if (CL3D.iszero(b)) return null;
+
+        var g = this.pointA.dotProduct(e);
+        var a = -(e.dotProduct(c) - g) / b;
+
+        return c.add(f.multiplyWithScal(a));
+    };
+
+    function getIntersectionWithLine(b, c)
+    {
+        var a = this.getIntersectionOfPlaneWithLine(b, c);
+
+        if (a == null) return null;
+        if (this.isPointInside(a)) return a;
+
+        return null;
+    };
+
+    function isTotalInsideBox(a)
+    {
+        return a.isPointInside(this.pointA) && a.isPointInside(this.pointB) && a.isPointInside(this.pointC);
+    };
+
+    function copyTo(a)
+    {
+        this.pointA.copyTo(a.pointA);
+        this.pointB.copyTo(a.pointB);
+        this.pointC.copyTo(a.pointC);
+    };
+};

@@ -1,0 +1,4 @@
+ArrayBuffer
+Float32Array    //WebGLFloatArray/CanvasFloatArray
+Uint8Array
+Uint16Array     //WebGLUnsignedShortArray/CanvasUnsignedShortArray

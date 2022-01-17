@@ -1,0 +1,160 @@
+CL3D.BillboardSceneNode = _BillboardSceneNode;
+
+class _BillboardSceneNode extends CL3D.SceneNode
+{
+
+    var Box = new CL3D.Box3d();
+    var SizeX = 10;
+    var SizeY = 10;
+    var IsVertical = false;
+    var MeshBuffer = new CL3D.MeshBuffer();
+    var vtx1 = new CL3D.Vertex3D(true);
+    var vtx2 = new CL3D.Vertex3D(true);
+    var vtx3 = new CL3D.Vertex3D(true);
+    var vtx4 = new CL3D.Vertex3D(true);
+
+    function _BillboardSceneNode()
+    {
+        super.init();
+        var c = this.MeshBuffer.Indices;
+        c.push(0);
+        c.push(2);
+        c.push(1);
+        c.push(0);
+        c.push(3);
+        c.push(2);
+        var a = this.MeshBuffer.Vertices;
+        a.push(this.vtx1);
+        a.push(this.vtx2);
+        a.push(this.vtx3);
+        a.push(this.vtx4);
+        this.vtx1.TCoords.X = 1;
+        this.vtx1.TCoords.Y = 1;
+        this.vtx2.TCoords.X = 1;
+        this.vtx2.TCoords.Y = 0;
+        this.vtx3.TCoords.X = 0;
+        this.vtx3.TCoords.Y = 0;
+        this.vtx4.TCoords.X = 0;
+        this.vtx4.TCoords.Y = 1;
+        for (var b = 0; b < 4; ++b)
+        {
+            this.Box.addInternalPointByVector(a[b].Pos);
+        }
+    }
+
+    function getBoundingBox()
+    {
+        return this.Box;
+    }
+
+    function getType()
+    {
+        return "billboard";
+    }
+
+    function OnRegisterSceneNode(a)
+    {
+        if (this.Visible)
+        {
+            if (this.isParentActiveFPSCameraToRenderChildrenWithoutZBuffer())
+                a.registerNodeForRendering(this, this.MeshBuffer.Mat.isTransparent() ? CL3D.Scene.RENDER_MODE_TRANSPARENT_AFTER_ZBUFFER_CLEAR : CL3D.Scene.TRANSPARENT_SOLID_AFTER_ZBUFFER_CLEAR);
+            else
+                a.registerNodeForRendering(this, this.MeshBuffer.Mat.isTransparent() ? CL3D.Scene.RENDER_MODE_TRANSPARENT : CL3D.Scene.RENDER_MODE_DEFAULT);
+            CL3D.SceneNode.prototype.OnRegisterSceneNode.call(this, a);
+        }
+    }
+
+    function render(l)
+    {
+        var a = this.scene.getActiveCamera();
+        if (!a) return;
+        var h = l.isShadowMapEnabled();
+        l.quicklyEnableShadowMap(false);
+        var e = this.IsVertical;
+        if (!e)
+        {
+            var n = this.getAbsolutePosition();
+            var o = l.getStaticBillboardMeshBuffer();
+            var g = new CL3D.Matrix4(true);
+            g.setScale(new CL3D.Vect3d(this.SizeX * 0.5, this.SizeY * 0.5, 0));
+            var j = l.getView().clone();
+            j.setTranslation(new CL3D.Vect3d(0, 0, 0));
+            var p = new CL3D.Matrix4(true);
+            j.getInverse(p);
+            p.setTranslation(n);
+            g = p.multiply(g);
+            l.setWorld(g);
+            l.setMaterial(this.MeshBuffer.Mat);
+            l.drawMeshBuffer(o);
+        }
+        else
+        {
+            var n = this.getAbsolutePosition();
+            var c = a.getAbsolutePosition();
+            var i = a.getTarget();
+            var f = a.getUpVector();
+            var m = i.substract(c);
+            m.normalize();
+            var b = f.crossProduct(m);
+            if (b.getLengthSQ() == 0) b.set(f.Y, f.X, f.Z);
+            b.normalize();
+            b.multiplyThisWithScal(0.5 * this.SizeX);
+            var d = b.crossProduct(m);
+            d.normalize();
+            d.multiplyThisWithScal(0.5 * this.SizeY);
+            if (this.IsVertical) d.set(0, -0.5 * this.SizeY, 0);
+            m.multiplyThisWithScal(1);
+            this.vtx1.Pos.setTo(n);
+            this.vtx1.Pos.addToThis(b);
+            this.vtx1.Pos.addToThis(d);
+            this.vtx2.Pos.setTo(n);
+            this.vtx2.Pos.addToThis(b);
+            this.vtx2.Pos.substractFromThis(d);
+            this.vtx3.Pos.setTo(n);
+            this.vtx3.Pos.substractFromThis(b);
+            this.vtx3.Pos.substractFromThis(d);
+            this.vtx4.Pos.setTo(n);
+            this.vtx4.Pos.substractFromThis(b);
+            this.vtx4.Pos.addToThis(d);
+            this.MeshBuffer.update(true);
+            var k = new CL3D.Matrix4(true);
+            l.setWorld(k);
+            l.setMaterial(this.MeshBuffer.Mat);
+            l.drawMeshBuffer(this.MeshBuffer);
+        }
+        if (h) l.quicklyEnableShadowMap(true);
+    }
+
+    function getMaterialCount()
+    {
+        return 1;
+    }
+
+    function getMaterial(a)
+    {
+        return this.MeshBuffer.Mat;
+    }
+
+    function createClone(b, a, e)
+    {
+        var d = new CL3D.BillboardSceneNode();
+        this.cloneMembers(d, b, a, e);
+        if (this.Box) d.Box = this.Box.clone();
+        d.SizeX = this.SizeX;
+        d.SizeY = this.SizeY;
+        d.IsVertical = this.IsVertical;
+        d.MeshBuffer.Mat = this.MeshBuffer.Mat.clone();
+        return d;
+    }
+
+    function getSize()
+    {
+        return new CL3D.Vect2d(this.SizeX, this.SizeY);
+    }
+
+    function setSize(a, b)
+    {
+        this.SizeX = a;
+        this.SizeY = b;
+    }
+};

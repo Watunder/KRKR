@@ -1,0 +1,6 @@
+global.NVL.Comon = function(){};
+
+const nvl_comon = 
+[
+    "layer"
+];

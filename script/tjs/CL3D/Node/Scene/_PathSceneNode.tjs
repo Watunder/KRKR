@@ -1,0 +1,102 @@
+CL3D.PathSceneNode = function() {
+    this.init();
+    this.Box = new CL3D.Box3d();
+    this.Tightness = 0;
+    this.IsClosedCircle = false;
+    this.Nodes = new Array()
+};
+
+CL3D.PathSceneNode.prototype = new CL3D.SceneNode();
+CL3D.PathSceneNode.prototype.Tightness = 0;
+CL3D.PathSceneNode.prototype.IsClosedCircle = false;
+CL3D.PathSceneNode.prototype.Nodes = new Array();
+CL3D.PathSceneNode.prototype.getBoundingBox = function() {
+    return this.Box
+};
+
+CL3D.PathSceneNode.prototype.getType = function() {
+    return "path"
+};
+
+CL3D.PathSceneNode.prototype.createClone = function(d, b, g) {
+    var f = new CL3D.PathSceneNode();
+    this.cloneMembers(f, d, b, g);
+    if (this.Box) {
+        f.Box = this.Box.clone()
+    }
+    f.Tightness = this.Tightness;
+    f.IsClosedCircle = this.IsClosedCircle;
+    f.Nodes = new Array();
+    for (var a = 0; a < this.Nodes.length; ++a) {
+        var e = this.Nodes[a];
+        f.Nodes.push(e.clone())
+    }
+    return f
+};
+
+CL3D.PathSceneNode.prototype.getPathNodeCount = function() {
+    return this.Nodes.length
+};
+
+CL3D.PathSceneNode.prototype.getPathNodePosition = function(a) {
+    if (a < 0 || a >= this.Nodes.length) {
+        return new CL3D.Vect3d(0, 0, 0)
+    }
+    if (!this.AbsoluteTransformation) {
+        this.updateAbsolutePosition()
+    }
+    var b = this.Nodes[a];
+    b = b.clone();
+    this.AbsoluteTransformation.transformVect(b);
+    return b
+};
+
+CL3D.PathSceneNode.prototype.clampPathIndex = function(a, b) {
+    if (this.IsClosedCircle) {
+        return (a < 0 ? (b + a) : ((a >= b) ? (a - b) : a))
+    }
+    return ((a < 0) ? 0 : ((a >= b) ? (b - 1) : a))
+};
+
+CL3D.PathSceneNode.prototype.getPointOnPath = function(p, a) {
+    var h = this.Nodes.length;
+    if (this.IsClosedCircle) {
+        p *= h
+    } else {
+        p = CL3D.clamp(p, 0, 1);
+        p *= h - 1
+    }
+    var e = new CL3D.Vect3d();
+    if (h == 0) {
+        return e
+    }
+    if (h == 1) {
+        return e
+    }
+    var b = p;
+    var o = CL3D.fract(b);
+    var l = Math.floor(b) % h;
+    var q = this.Nodes[this.clampPathIndex(l - 1, h)];
+    var n = this.Nodes[this.clampPathIndex(l + 0, h)];
+    var m = this.Nodes[this.clampPathIndex(l + 1, h)];
+    var k = this.Nodes[this.clampPathIndex(l + 2, h)];
+    var j = 2 * o * o * o - 3 * o * o + 1;
+    var i = -2 * o * o * o + 3 * o * o;
+    var g = o * o * o - 2 * o * o + o;
+    var f = o * o * o - o * o;
+    var d = m.substract(q);
+    d.multiplyThisWithScal(this.Tightness);
+    var c = k.substract(n);
+    c.multiplyThisWithScal(this.Tightness);
+    e = n.multiplyWithScal(j);
+    e.addToThis(m.multiplyWithScal(i));
+    e.addToThis(d.multiplyWithScal(g));
+    e.addToThis(c.multiplyWithScal(f));
+    if (!a) {
+        if (!this.AbsoluteTransformation) {
+            this.updateAbsolutePosition()
+        }
+        this.AbsoluteTransformation.transformVect(e)
+    }
+    return e
+};

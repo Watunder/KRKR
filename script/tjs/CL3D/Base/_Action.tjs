@@ -1,0 +1,1372 @@
+CL3D.Action = function() {};
+
+CL3D.Action.execute = function(a, b) {};
+
+CL3D.Action.createClone = function(a, b)
+{
+    return null;
+};
+
+CL3D.Action.SetOverlayText = _Action_SetOverlayText;
+
+class _Action_SetOverlayText
+{
+    var Text = "";
+    var SceneNodeToChange = null;
+    var ChangeCurrentSceneNode = false;
+    var Type = "SetOverlayText";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.SetOverlayText();
+
+        b.Text = this.Text;
+        b.SceneNodeToChange = this.SceneNodeToChange;
+        b.ChangeCurrentSceneNode = this.ChangeCurrentSceneNode;
+        if (b.SceneNodeToChange == c) b.SceneNodeToChange = d;
+
+        return b;
+    };
+
+    function execute(a, h)
+    {
+        if (!a || !h) return;
+
+        var j = null;
+        if (this.ChangeCurrentSceneNode) j = a;
+        else if (this.SceneNodeToChange != -1)
+                j = h.getSceneNodeFromId(this.SceneNodeToChange);
+        if (j && j.setText)
+        {
+            var g = this.Text.indexOf("$");
+            if (g != -1)
+            {
+                var c = this.Text;
+                var e = 0;
+                var k = true;
+                while (k)
+                {
+                    k = false;
+                    g = c.indexOf("$", e);
+                    if (g != -1)
+                    {
+                        e = g + 1;
+                        var d = c.indexOf("$", g + 1);
+                        if (d != -1)
+                        {
+                            k = true;
+                            var b = c.substr(g + 1, d - (g + 1));
+                            var i = CL3D.CopperCubeVariable.getVariable(b, false, h);
+                            if (i)
+                            {
+                                var f = c.substr(0, g);
+                                f += i.getValueAsString();
+                                e = f.length + 1;
+                                f += c.substr(d + 1, c.length - d);
+                                c = f;
+                            }
+                        }
+                    }
+                }
+                j.setText(c);
+            }
+            else j.setText(this.Text);
+        }
+    }
+};
+
+CL3D.Action.MakeSceneNodeInvisible = _Action_MakeSceneNodeInvisible;
+
+class _Action_MakeSceneNodeInvisible
+{
+    var InvisibleMakeType = 0;
+    var SceneNodeToMakeInvisible = null;
+    var ChangeCurrentSceneNode = false;
+    var Type = "MakeSceneNodeInvisible";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.MakeSceneNodeInvisible();
+
+        b.InvisibleMakeType = this.InvisibleMakeType;
+        b.SceneNodeToMakeInvisible = this.SceneNodeToMakeInvisible;
+        b.ChangeCurrentSceneNode = this.ChangeCurrentSceneNode;
+        if (b.SceneNodeToMakeInvisible == c)
+            b.SceneNodeToMakeInvisible = d;
+
+        return b;
+    }
+
+    function execute(c, b)
+    {
+        if (!c || !b) return;
+
+        var a = null;
+        if (this.ChangeCurrentSceneNode) a = c;
+        else if (this.SceneNodeToMakeInvisible != -1)
+                a = b.getSceneNodeFromId(this.SceneNodeToMakeInvisible);    
+        if (a)
+        {
+            switch (this.InvisibleMakeType)
+            {
+                case 0:
+                    a.Visible = false;
+                    break;
+                case 1:
+                    a.Visible = true;
+                    break;
+                case 2:
+                    a.Visible = !a.Visible;
+                    break;
+            }
+        }
+    }
+};
+
+CL3D.Action.ChangeSceneNodePosition = _Action_ChangeSceneNodePosition;
+
+class _Action_ChangeSceneNodePosition
+{
+    var UseAnimatedMovement = false;
+    var TimeNeededForMovementMs = false;
+    var Type = "ChangeSceneNodePosition";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.ChangeSceneNodePosition();
+
+        b.PositionChangeType = this.PositionChangeType;
+        b.SceneNodeToChangePosition = this.SceneNodeToChangePosition;
+        b.SceneNodeRelativeTo = this.SceneNodeRelativeTo;
+        b.ChangeCurrentSceneNode = this.ChangeCurrentSceneNode;
+        b.RelativeToCurrentSceneNode = this.RelativeToCurrentSceneNode;
+        b.Vector = this.Vector ? this.Vector.clone() : null;
+        b.Area3DEnd = this.Area3DEnd ? this.Area3DEnd.clone() : null;
+        b.UseAnimatedMovement = this.UseAnimatedMovement;
+        b.TimeNeededForMovementMs = this.TimeNeededForMovementMs;
+
+        if (b.SceneNodeToChangePosition == c)
+            b.SceneNodeToChangePosition = d;
+        
+        if (b.SceneNodeRelativeTo == c)
+            b.SceneNodeRelativeTo = d;
+
+        return b;
+    }
+
+    function execute(a, g)
+    {
+        if (!a || !g) return;
+
+        var i = null;
+        if (this.ChangeCurrentSceneNode) i = a;
+        else if (this.SceneNodeToChangePosition != -1)
+                i = g.getSceneNodeFromId(this.SceneNodeToChangePosition);
+        if (i)
+        {
+            var e = null;
+            switch (this.PositionChangeType)
+            {
+                case 0:
+                    e = this.Vector.clone();
+                    break;
+                case 1:
+                    e = i.Pos.add(this.Vector);
+                    break;
+                case 2:
+                    var h = null;
+                    if (this.RelativeToCurrentSceneNode) h = a;
+                    else if (this.SceneNodeRelativeTo != -1)
+                            h = g.getSceneNodeFromId(this.SceneNodeRelativeTo);
+
+                    if (h) e = h.Pos.add(this.Vector);
+                    break;
+                case 3:
+                    var f = this.Vector.getLength();
+                    var c = i.AbsoluteTransformation;
+                    var j = new CL3D.Vect3d(1, 0, 0);
+                    c.rotateVect(j);
+                    if (i.getType() == "camera")
+                        j = i.Target.substract(i.Pos);
+
+                    j.setLength(f);
+                    e = i.Pos.add(j);
+                    break;
+                case 4:
+                    var d = new CL3D.Box3d();
+                    d.reset(this.Vector.X, this.Vector.Y, this.Vector.Z);
+                    d.addInternalPointByVector(this.Area3DEnd);
+                    e = new CL3D.Vect3d();
+                    e.X = d.MinEdge.X + (Math.random() * (d.MaxEdge.X - d.MinEdge.X));
+                    e.Y = d.MinEdge.Y + (Math.random() * (d.MaxEdge.Y - d.MinEdge.Y));
+                    e.Z = d.MinEdge.Z + (Math.random() * (d.MaxEdge.Z - d.MinEdge.Z));
+                    break;
+                case 5:
+                    e = g.LastBulletImpactPosition.add(this.Vector);
+                    break;
+            }
+            if (e != null)
+            {
+                if (this.UseAnimatedMovement && this.TimeNeededForMovementMs > 0)
+                {
+                    var b = new CL3D.AnimatorFlyStraight();
+                    b.Start = i.Pos.clone();
+                    b.End = e;
+                    b.TimeForWay = this.TimeNeededForMovementMs;
+                    b.DeleteMeAfterEndReached = true;
+                    b.recalculateImidiateValues();
+                    i.addAnimator(b);
+                }
+                else i.Pos = e;
+            }
+        }
+    }
+};
+
+CL3D.Action.ChangeSceneNodeRotation = _Action_ChangeSceneNodeRotation;
+
+class _Action_ChangeSceneNodeRotation
+{
+    var Type = "ChangeSceneNodeRotation";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.ChangeSceneNodeRotation();
+
+        b.RotationChangeType = this.RotationChangeType;
+        b.SceneNodeToChangeRotation = this.SceneNodeToChangeRotation;
+        b.ChangeCurrentSceneNode = this.ChangeCurrentSceneNode;
+        b.Vector = this.Vector ? this.Vector.clone() : null;
+        b.RotateAnimated = this.RotateAnimated;
+        b.TimeNeededForRotationMs = this.TimeNeededForRotationMs;
+
+        if (b.SceneNodeToChangeRotation == c)
+            b.SceneNodeToChangeRotation = d;
+
+        return b;
+    }
+
+    function execute(c, b)
+    {
+        if (!c || !b) return;
+
+        var a = null;
+        if (this.ChangeCurrentSceneNode) a = c;
+        else if (this.SceneNodeToChangeRotation != -1)
+                a = b.getSceneNodeFromId(this.SceneNodeToChangeRotation);
+
+        if (a)
+        {
+            var e = null;
+            switch (this.RotationChangeType)
+            {
+                case 0:
+                    e = this.Vector.clone();
+                    break;
+                case 1:
+                    e = a.Rot.add(this.Vector);
+                    break;
+            }
+            if (e)
+            {
+                if (!this.RotateAnimated) a.Rot = e;
+                else {
+                    var d = new _Action_ChangeSceneNodeRotation();
+                    d.setRotateToTargetAndStop(e, a.Rot, this.TimeNeededForRotationMs);
+                    a.addAnimator(d);
+                }
+            }
+        }
+    }
+};
+
+CL3D.Action.ChangeSceneNodeScale = _Action_ChangeSceneNodeScale;
+
+class _Action_ChangeSceneNodeScale
+{
+    var Type = "ChangeSceneNodeScale";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.ChangeSceneNodeScale();
+
+        b.ScaleChangeType = this.ScaleChangeType;
+        b.SceneNodeToChangeScale = this.SceneNodeToChangeScale;
+        b.ChangeCurrentSceneNode = this.ChangeCurrentSceneNode;
+        b.Vector = this.Vector ? this.Vector.clone() : null;
+
+        if (b.SceneNodeToChangeScale == c)
+            b.SceneNodeToChangeScale = d;
+
+        return b;
+    }
+
+    function execute(c, b)
+    {
+        if (!c || !b) return;
+
+        var a = null;
+        if (this.ChangeCurrentSceneNode) a = c;
+        else if (this.SceneNodeToChangeScale != -1)
+                a = b.getSceneNodeFromId(this.SceneNodeToChangeScale);
+
+        if (a)
+        {
+            switch (this.ScaleChangeType)
+            {
+                case 0:
+                    a.Scale = this.Vector.clone();
+                    break;
+                case 1:
+                    a.Scale = a.Scale.multiplyWithVect(this.Vector);
+                    break;
+            }
+        }
+    }
+};
+
+CL3D.Action.ChangeSceneNodeTexture = _Action_ChangeSceneNodeTexture;
+
+class _Action_ChangeSceneNodeTexture
+{
+    var Type = "ChangeSceneNodeTexture";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.ChangeSceneNodeTexture();
+        b.TextureChangeType = this.TextureChangeType;
+        b.SceneNodeToChange = this.SceneNodeToChange;
+        b.ChangeCurrentSceneNode = this.ChangeCurrentSceneNode;
+        b.TheTexture = this.TheTexture;
+        b.IndexToChange = this.IndexToChange;
+        if (b.SceneNodeToChange == c) b.SceneNodeToChange = d;
+        return b;
+    }
+
+    function execute(e, d)
+    {
+        if (!e || !d) return;
+        
+        var a = null;
+        if (this.ChangeCurrentSceneNode)
+            a = e;
+        else if (this.SceneNodeToChange != -1)
+            a = d.getSceneNodeFromId(this.SceneNodeToChange);
+        
+        if (a)
+        {
+            if (a.getType() == "2doverlay")
+                a.setShowImage(this.TheTexture);
+            else
+            {
+                var f = a.getMaterialCount();
+                if (this.TextureChangeType == 0)
+                {
+                    for (var c = 0; c < f; ++c)
+                    {
+                        var b = a.getMaterial(c);
+                        b.Tex1 = this.TheTexture;
+                    }
+                }
+                else
+                {
+                    if (this.TextureChangeType == 1)
+                    {
+                        var b = a.getMaterial(this.IndexToChange);
+                        if (b != null)
+                            b.Tex1 = this.TheTexture;
+                    }
+                }
+            }
+        }
+    }
+};
+
+CL3D.Action.ExecuteJavaScript = _Action_ExecuteJavaScript;
+
+class _Action_ExecuteJavaScript
+{
+    var Type = "ExecuteJavaScript";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.ExecuteJavaScript();
+        b.TJScript = this.TJScript;
+        return b;
+    }
+
+    function execute(currentNode, sceneManager)
+    {
+        CL3D.gCurrentTJScriptNode = currentNode;
+        Scripts.evalTJS(this.TJScript);
+        CL3D.gCurrentTJScriptNode = null;
+    }
+};
+
+CL3D.Action.OpenWebpage = _Action_OpenWebpage;
+
+class _Action_OpenWebpage
+{
+    var Type = "OpenWebpage";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.OpenWebpage();
+        b.Webpage = this.Webpage;
+        b.Target = this.Target;
+        return b;
+    }
+
+    function execute(b, a)
+    {
+        window.open(this.Webpage, this.Target);
+    }
+};
+
+CL3D.Action.SetSceneNodeAnimation = _Action_SetSceneNodeAnimation;
+
+class _Action_SetSceneNodeAnimation
+{
+    var Type = "SetSceneNodeAnimation";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.SetSceneNodeAnimation();
+        b.SceneNodeToChangeAnim = this.SceneNodeToChangeAnim;
+        b.ChangeCurrentSceneNode = this.ChangeCurrentSceneNode;
+        b.Loop = this.Loop;
+        b.AnimName = this.AnimName;
+        if (b.SceneNodeToChangeAnim == c)
+            b.SceneNodeToChangeAnim = d;
+        return b;
+    }
+
+    function execute(d, c)
+    {
+        if (!d || !c) return;
+
+        var a = null;
+        if (this.ChangeCurrentSceneNode) a = d;
+        else if (this.SceneNodeToChangeAnim != -1)
+                a = c.getSceneNodeFromId(this.SceneNodeToChangeAnim);
+        if (a)
+        {
+            var b = a;
+            if (b.getType() != "animatedmesh") return;
+            b.setAnimationByEditorName(this.AnimName, this.Loop);
+        }
+    }
+};
+
+CL3D.Action.SwitchToScene = _Action_SwitchToScene;
+
+class _Action_SwitchToScene
+{
+    var Engine;
+    var Type = "SwitchToScene";
+
+    function _Action_SwitchToScene(a)
+    {
+        this.Engine = a;
+    }
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.SwitchToScene();
+        b.SceneName = this.SceneName;
+        return b;
+    }
+
+    function execute(b, a)
+    {
+        if (this.Engine)
+            this.Engine.gotoSceneByName(this.SceneName, true);
+    }
+};
+
+CL3D.Action.SetActiveCamera = _Action_SetActiveCamera;
+
+class _Action_SetActiveCamera
+{
+    var Engine;
+    var Type = "SetActiveCamera";
+
+    function _Action_SetActiveCamera(a)
+    {
+        this.Engine = a;
+    }
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.SetActiveCamera();
+        b.CameraToSetActive = this.CameraToSetActive;
+        if (b.CameraToSetActive == c)
+            b.CameraToSetActive = d;
+        
+        return b;
+    }
+
+    function execute(c, b)
+    {
+        if (!c || !b) return;
+        
+        var a = null;
+        if (this.CameraToSetActive != -1)
+            a = b.getSceneNodeFromId(this.CameraToSetActive);
+        if (a != null)
+        {
+            if (a.getType() == "camera")
+            {
+                if (this.Engine)
+                    this.Engine.setActiveCameraNextFrame(a);
+            }
+        }
+    }
+};
+
+CL3D.Action.SetCameraTarget = _Action_SetCameraTarget;
+
+class _Action_SetCameraTarget
+{
+    var UseAnimatedMovement = false;
+    var TimeNeededForMovementMs = 0;
+    var Type = "SetCameraTarget";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.SetCameraTarget();
+
+        b.PositionChangeType = this.PositionChangeType;
+        b.SceneNodeToChangePosition = this.SceneNodeToChangePosition;
+        b.SceneNodeRelativeTo = this.SceneNodeRelativeTo;
+        b.ChangeCurrentSceneNode = this.ChangeCurrentSceneNode;
+        b.RelativeToCurrentSceneNode = this.RelativeToCurrentSceneNode;
+        b.Vector = this.Vector ? this.Vector.clone() : null;
+        b.UseAnimatedMovement = this.UseAnimatedMovement;
+        b.TimeNeededForMovementMs = this.TimeNeededForMovementMs;
+        
+        return b;
+    }
+
+    function execute(f, e)
+    {
+        if (!f || !e) return;
+        
+        var b = null;
+        if (this.ChangeCurrentSceneNode)
+            b = f;
+        else if (this.SceneNodeToChangePosition != -1)
+                b = e.getSceneNodeFromId(this.SceneNodeToChangePosition);
+
+        var h = b;
+        if (h.getType() != "camera") return;
+        
+        var a = h.getTarget().clone();
+        switch (this.PositionChangeType)
+        {
+            case 0:
+                a = this.Vector.clone();
+                break;
+            case 1:
+                a = b.Pos.add(this.Vector);
+                break;
+            case 2:
+                var d = null;
+                if (this.RelativeToCurrentSceneNode)
+                    d = f;
+                else if (this.SceneNodeRelativeTo != -1)
+                    d = e.getSceneNodeFromId(this.SceneNodeRelativeTo);
+                if (d) a = d.Pos.add(this.Vector);
+                break;
+        }
+        if (a != null)
+        {
+            if (this.UseAnimatedMovement && this.TimeNeededForMovementMs > 0)
+            {
+                var g = new CL3D.AnimatorFlyStraight();
+                g.Start = h.getTarget().clone();
+                g.End = a;
+                g.TimeForWay = this.TimeNeededForMovementMs;
+                g.DeleteMeAfterEndReached = true;
+                g.AnimateCameraTargetInsteadOfPosition = true;
+                g.recalculateImidiateValues();
+                b.addAnimator(g);
+            }
+            else
+            {
+                h.setTarget(a);
+                var c = h.getAnimatorOfType("camerafps");
+                if (c != null) c.lookAt(a);
+            }
+        }      
+    }
+};
+
+CL3D.Action.Shoot = _Action_Shoot;
+
+class _Action_Shoot
+{
+    var ShootType = 0;
+    var Damage = 0;
+    var BulletSpeed = 0;
+    var SceneNodeToUseAsBullet = -1;
+    var WeaponRange = 100;
+    var Type = "Shoot";
+    var SceneNodeToShootFrom = -1;
+    var ShootToCameraTarget = false;
+    var AdditionalDirectionRotation = null;
+    var ActionHandlerOnImpact = null;
+    var ShootDisplacement = new CL3D.Vect3d();
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.Shoot();
+
+        b.ShootType = this.ShootType;
+        b.Damage = this.Damage;
+        b.BulletSpeed = this.BulletSpeed;
+        b.SceneNodeToUseAsBullet = this.SceneNodeToUseAsBullet;
+        b.WeaponRange = this.WeaponRange;
+        b.SceneNodeToShootFrom = this.SceneNodeToShootFrom;
+        b.ShootToCameraTarget = this.ShootToCameraTarget;
+        b.AdditionalDirectionRotation = this.AdditionalDirectionRotation;
+        b.ActionHandlerOnImpact = this.ActionHandlerOnImpact ? this.ActionHandlerOnImpact.createClone(c, d) : null;
+        b.ShootDisplacement = this.ShootDisplacement.clone();
+
+        if (b.SceneNodeToUseAsBullet == c)
+            b.SceneNodeToUseAsBullet = d;
+
+        if (b.SceneNodeToShootFrom == c)
+            b.SceneNodeToShootFrom = d;
+
+        return b;
+    }
+
+    function execute(e, b)
+    {
+        if (!e || !b) return;
+        
+        var k = new CL3D.Line3d();
+        var s = false;
+        var j = null;
+        var i = null;
+        var f = b.getAllSceneNodesWithAnimator("gameai");
+        if (this.SceneNodeToShootFrom != -1)
+        {
+            var l = b.getSceneNodeFromId(this.SceneNodeToShootFrom);
+            if (l != null)
+            {
+                s = true;
+                j = l;
+                k.Start = l.getBoundingBox().getCenter();
+                k.Start.addToThis(this.ShootDisplacement);
+                l.AbsoluteTransformation.transformVect(k.Start);
+                i = b.getActiveCamera();
+                if (this.ShootToCameraTarget && i)
+                {
+                    var d = new CL3D.Line3d();
+                    d.Start = i.getAbsolutePosition();
+                    d.End = i.getTarget();
+                    var c = d.getVector();
+                    c.setLength(this.WeaponRange);
+                    d.End = d.Start.add(c);
+                    this.shortenRayToClosestCollisionPointWithWorld(d, f, this.WeaponRange, b);
+                    this.shortenRayToClosestCollisionPointWithAIAnimator(d, f, this.WeaponRange, j, b);
+                    k.End = d.End;
+                } 
+                else
+                {
+                    var u = l.AbsoluteTransformation;
+                    if (this.AdditionalDirectionRotation)
+                    {
+                        var n = new CL3D.Matrix4();
+                        n.setRotationDegrees(this.AdditionalDirectionRotation);
+                        u = u.multiply(n);
+                    }
+                    k.End.set(1, 0, 0);
+                    u.rotateVect(k.End);
+                    k.End.addToThis(k.Start);
+                }
+            }
+        }
+        else
+        {
+            if (e != null)
+            {
+                j = e;
+                var r = e.getAnimatorOfType("gameai");
+                if (r && r.isCurrentlyShooting())
+                {
+                    k = r.getCurrentlyShootingLine();
+                    s = true;
+                }
+            }
+        }
+        if (!s)
+        {
+            i = b.getActiveCamera();
+            if (i)
+            {
+                j = i;
+                k.Start = i.getAbsolutePosition();
+                k.End = i.getTarget();
+                s = true;
+            }
+        }
+        if (!s) return;
+
+        var o = k.getVector();
+        o.setLength(this.WeaponRange);
+        k.End = k.Start.add(o);
+        this.shortenRayToClosestCollisionPointWithWorld(k, f, this.WeaponRange, b);
+        if (this.ShootType == 1)
+        {
+            var t = null;
+            if (this.SceneNodeToUseAsBullet != -1)
+                t = b.getSceneNodeFromId(this.SceneNodeToUseAsBullet);
+            if (t) 
+            {
+                var h = t.createClone(b.getRootSceneNode(), -1, -1);
+                b.getRootSceneNode().addChild(h);
+                if (h != null)
+                {
+                    h.Pos = k.Start;
+                    h.updateAbsolutePosition();
+                    h.Visible = true;
+                    h.Id = -1;
+                    h.Name = "";
+                    var a = k.getVector();
+                    a = a.getHorizontalAngle();
+                    h.Rot = a;
+                    var q = this.BulletSpeed;
+                    if (q == 0) q = 1;
+                    
+                    var p = new CL3D.AnimatorFlyStraight();
+                    p.Start = k.Start;
+                    p.End = k.End;
+                    p.TimeForWay = k.getLength() / q;
+                    p.DeleteMeAfterEndReached = true;
+                    p.recalculateImidiateValues();
+                    p.TestShootCollisionWithBullet = true;
+                    p.ShootCollisionNodeToIgnore = j;
+                    p.ShootCollisionDamage = this.Damage;
+                    p.DeleteSceneNodeAfterEndReached = true;
+                    p.ActionToExecuteOnEnd = this.ActionHandlerOnImpact;
+                    p.ExecuteActionOnEndOnlyIfTimeSmallerThen = this.WeaponRange / q;
+                    h.addAnimator(p);
+                }
+            }
+        }
+        else
+        {
+            if (this.ShootType == 0)
+            {
+                var v = this.WeaponRange;
+                var m = this.shortenRayToClosestCollisionPointWithAIAnimator(k, f, this.WeaponRange, j, b);
+                if (m != null)
+                {
+                    b.LastBulletImpactPosition = k.End.clone();
+                    var g = m.getAnimatorOfType("gameai");
+                    if (g) g.OnHit(this.Damage, m);
+                }
+            }
+        }
+    }
+
+    function shortenRayToClosestCollisionPointWithWorld(c, h, b, f)
+    {
+        if (h.length != 0)
+        {
+            var e = h[0].getAnimatorOfType("gameai");
+            if (e)
+            {
+                var g = e.World;
+                if (g)
+                {
+                    var a = CL3D.AnimatorOnClick.static_getDistanceToNearestCollisionPointWithWorld(f, c.Start, c.End, g, true);
+                    if (a < b)
+                    {
+                        var d = c.getVector();
+                        d.setLength(a);
+                        c.End = c.Start.add(d);
+                    }
+                }
+            }
+        }
+    }
+
+    function shortenRayToClosestCollisionPointWithAIAnimator(h, l, b, a, j)
+    {
+        var e = b;
+        var f = null;
+        for (var d = 0; d < l.length; ++d)
+        {
+            if (l[d] === a) continue;
+
+            var k = l[d].getAnimatorOfType("gameai");
+            if (k && !k.isAlive()) continue;
+        
+            var g = new Object();//
+            g.N = 0;
+            if (CL3D.AnimatorOnClick.static_getCollisionDistanceWithNode(j, l[d], h, false, false, null, g))
+            {
+                if (g.N < e)
+                {
+                    e = g.N;
+                    f = l[d];
+                }
+            }
+        }
+        if (f)
+        {
+            var c = h.getVector();
+            c.setLength(e);
+            h.End = h.Start.add(c);
+        }
+        return f;
+    }
+
+    function getWeaponRange()
+    {
+        return this.WeaponRange;
+    }
+};
+
+CL3D.Action.SetOrChangeAVariable = _Action_SetOrChangeAVariable;
+
+class _Action_SetOrChangeAVariable
+{
+    var Type = "SetOrChangeAVariable";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.SetOrChangeAVariable();
+        b.VariableName = this.VariableName;
+        b.Operation = this.Operation;
+        b.ValueType = this.ValueType;
+        b.Value = this.Value;
+        return b;
+    }
+
+    function execute(d, c)
+    {
+        if (!d || !c) return;
+        
+        if (this.VariableName == null) return;
+
+        var f = CL3D.CopperCubeVariable.getVariable(this.VariableName, true, c);
+        if (f == null) return;
+
+        var e = null;
+        if (this.ValueType == 1)
+        {
+            e = CL3D.CopperCubeVariable.getVariable(this.Value, false, c);
+            if (e == null) return;
+        }
+        if (e == null)
+        {
+            e = new CL3D.CopperCubeVariable();
+            e.setValueAsString(this.Value);
+        }
+        switch (this.Operation)
+        {
+            case 0:
+                f.setAsCopy(e);
+                break;
+            case 1:
+                f.setValueAsFloat(f.getValueAsFloat() + e.getValueAsFloat());
+                break;
+            case 2:
+                f.setValueAsFloat(f.getValueAsFloat() - e.getValueAsFloat());
+                break;
+            case 3:
+                var b = e.getValueAsFloat();
+                f.setValueAsFloat((b != 0) ? (f.getValueAsFloat() / b) : 0);
+                break;
+            case 4:
+                var a = e.getValueAsFloat();
+                f.setValueAsInt((a != 0) ? Math.floor(f.getValueAsFloat() / a) : 0);
+                break;
+            case 5:
+                f.setValueAsFloat(f.getValueAsFloat() * e.getValueAsFloat());
+                break;
+            case 6:
+                f.setValueAsInt(Math.floor(f.getValueAsFloat() * e.getValueAsFloat()));
+                break;
+        }
+        CL3D.CopperCubeVariable.saveContentOfPotentialTemporaryVariableIntoSource(f, c);
+    }
+};
+
+CL3D.Action.IfVariable = _Action_IfVariable;
+
+class _Action_IfVariable
+{
+    var Type = "IfVariable";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.IfVariable();
+
+        b.VariableName = this.VariableName;
+        b.ComparisonType = this.ComparisonType;
+        b.ValueType = this.ValueType;
+        b.Value = this.Value;
+        b.TheActionHandler = this.TheActionHandler ? this.TheActionHandler.createClone(c, d) : null;
+        b.TheElseActionHandler = this.TheElseActionHandler ? this.TheElseActionHandler.createClone(c, d) : null;
+
+        return b;
+    }
+
+    function execute(b, a)
+    {
+        if (!b || !a) return;
+        
+        if (this.VariableName == null) return;
+        
+        var e = CL3D.CopperCubeVariable.getVariable(this.VariableName, true, a);
+        if (e == null) return;
+        
+        var d = null;
+        if (this.ValueType == 1)
+        {
+            d = CL3D.CopperCubeVariable.getVariable(this.Value, false, a);
+            if (d == null) return;
+        }
+        if (d == null)
+        {
+            d = new CL3D.CopperCubeVariable();
+            d.setValueAsString(this.Value);
+        }
+        var c = false;
+        switch (this.ComparisonType)
+        {
+            case 0:
+            case 1:
+                if (e.isString() && d.isString())
+                    c = e.getValueAsString() == d.getValueAsString();
+                else
+                    c = CL3D.equals(e.getValueAsFloat(), d.getValueAsFloat());
+                if (this.ComparisonType == 1) c = !c;
+                break;
+            case 2:
+                c = e.getValueAsFloat() > d.getValueAsFloat();
+                break;
+            case 3:
+                c = e.getValueAsFloat() < d.getValueAsFloat();
+                break;
+        }
+        if (c)
+        {
+            if (this.TheActionHandler)
+                this.TheActionHandler.execute(b);
+        }
+        else if (this.TheElseActionHandler)
+                this.TheElseActionHandler.execute(b);
+    }
+};
+
+CL3D.Action.RestartBehaviors = _Action_RestartBehaviors;
+
+class _Action_RestartBehaviors
+{
+    var SceneNodeToRestart = null;
+    var ChangeCurrentSceneNode = false;
+    var Type = "RestartBehaviors";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.RestartBehaviors();
+
+        b.SceneNodeToRestart = this.SceneNodeToRestart;
+        b.ChangeCurrentSceneNode = this.ChangeCurrentSceneNode;
+        if (b.ChangeCurrentSceneNode == c)
+            b.ChangeCurrentSceneNode = d;
+
+        return b;
+    }
+
+    function execute(f, e)
+    {
+        if (!f || !e) return;
+        
+        var b = null;
+        if (this.ChangeCurrentSceneNode) b = f;
+        else if (this.SceneNodeToRestart != -1)
+            b = e.getSceneNodeFromId(this.SceneNodeToRestart);
+
+        if (b)
+        {
+            for (var d = 0; d < b.Animators.length; ++d)
+            {
+                var c = b.Animators[d];
+                if (c != null) c.reset();
+            }
+        }
+    }
+};
+
+CL3D.Action.ActionPlaySound = _Action_ActionPlaySound;
+
+class _Action_ActionPlaySound
+{
+    var Type = "PlaySound";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.ActionPlaySound();
+
+        b.SceneNodeToPlayAt = this.SceneNodeToPlayAt;
+        b.PlayAtCurrentSceneNode = this.PlayAtCurrentSceneNode;
+        b.Position3D = this.Position3D ? this.Position3D.clone() : null;
+        b.MinDistance = this.MinDistance;
+        b.MaxDistance = this.MaxDistance;
+        b.PlayLooped = this.PlayLooped;
+        b.Volume = this.Volume;
+        b.PlayAs2D = this.PlayAs2D;
+        b.TheSound = this.TheSound;
+
+        if (b.SceneNodeToPlayAt == c)
+            b.SceneNodeToPlayAt = d;
+
+        return b;
+    }
+
+    function execute(a)
+    {
+        if (a == null || this.TheSound == null) {
+            return;
+        
+        if (this.PlayAs2D || true)
+            this.PlayingSound = CL3D.gSoundManager.play2D(this.TheSound, this.PlayLooped, this.Volume);
+    }
+};
+
+CL3D.Action.StopSpecificSound = _Action_StopSpecificSound;
+
+class _Action_StopSpecificSound
+{
+    var Type = "StopSpecificSound";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.StopSpecificSound();
+
+        b.TheSound = this.TheSound;
+
+        return b;
+    }
+
+    function execute(a)
+    {
+        if (a == null || this.TheSound == null) return;
+        CL3D.gSoundManager.stopSpecificPlayingSound(this.TheSound.Name);
+    }
+};
+
+CL3D.Action.ActionStopSound = _Action_ActionStopSound;
+
+class _Action_ActionStopSound
+{
+    var Type = "StopSound";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.ActionStopSound();
+
+        b.SoundChangeType = this.SoundChangeType;
+        b.SoundFileName = this.SoundFileName;
+
+        return b;
+    }
+
+    function execute()
+    {
+        CL3D.gSoundManager.stopAll();
+    }
+};
+
+CL3D.Action.ActionStoreLoadVariable = _Action_ActionStoreLoadVariable;
+
+class _Action_ActionStoreLoadVariable
+{
+    var Type = "StoreLoadVariable";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.ActionStoreLoadVariable();
+
+        b.Load = this.Load;
+        b.VariableName = this.VariableName;
+
+        return b;
+    }
+
+    function setCookie(e, c, a)
+    {
+        var b = new Date();
+        b.setDate(b.getDate() + a);
+        var d = escape(c) + ("; expires=" + b.toUTCString());
+        document.cookie = e + "=" + d;
+    }
+
+    function getCookie(f)
+    {
+        var d = document.cookie.split(";");
+        for (var c = 0; c < d.length; ++c) {
+            var b = d[c];
+            var e = b.indexOf("=");
+            var a = b.substr(0, e);
+            a = a.replace(/^\s+|\s+$/g, "");
+            if (a == f) {
+                return unescape(b.substr(e + 1));
+            }
+        }
+        return null;
+    }
+
+    function execute(b, a)
+    {
+        if (this.VariableName == null || this.VariableName == "") return;
+        
+        var d = CL3D.CopperCubeVariable.getVariable(this.VariableName, this.Load, a);
+        if (d != null)
+        {
+            try
+            {
+                if (this.Load) d.setValueAsString(this.getCookie(d.getName()));
+                else this.setCookie(d.getName(), d.getValueAsString(), 99);
+            }
+            catch (c) {}
+        }
+    }
+};
+
+CL3D.ActionHandler = _ActionHandler;
+
+class _ActionHandler
+{
+    var Actions = new Array();
+    var SMGr;
+
+    function _ActionHandler(a)
+    {
+        this.SMGr = a;
+    }
+
+    function execute(b, c)
+    {
+        for (var a = 0; a < this.Actions.length; ++a)
+        {
+            this.Actions[a].execute(b, this.SMGr);
+        }
+    }
+
+    function addAction(b)
+    {
+        if (b == null) return;
+        this.Actions.push(b);
+    }
+
+    function findAction(d)
+    {
+        for (var c = 0; c < this.Actions.length; ++c)
+        {
+            var b = this.Actions[c];
+            if (b.Type == d) return b;
+        }
+        return null;       
+    }
+
+    function createClone(e, g)
+    {
+        var f = new CL3D.ActionHandler(this.SMGr);
+
+        for (var d = 0; d < this.Actions.length; ++d)
+        {
+            var b = this.Actions[d];
+            if (b.createClone != null)
+                f.addAction(b.createClone(e, g));
+        }
+        
+        return f;
+    }
+};
+
+CL3D.Action.ActionRestartScene = _Action_ActionRestartScene;
+
+class _Action_ActionRestartScene
+{
+    var Engine;
+    var Type = "RestartScene";
+
+    function _Action_ActionRestartScene(a)
+    {
+        this.Engine = a;
+    }
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.ActionRestartScene();
+        b.SceneName = this.SceneName;
+        return b;
+    }
+
+    function execute(b, a)
+    {
+        if (this.Engine)
+            this.Engine.reloadScene(this.SceneName);
+    }
+};
+
+CL3D.Action.ActionDeleteSceneNode = _Action_ActionDeleteSceneNode;
+
+class _Action_ActionDeleteSceneNode
+{
+    var Type = "ActionDeleteSceneNode";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.ActionDeleteSceneNode();
+        b.SceneNodeToDelete = this.SceneNodeToDelete;
+        b.DeleteCurrentSceneNode = this.DeleteCurrentSceneNode;
+        b.TimeAfterDelete = this.TimeAfterDelete;
+
+        if (b.SceneNodeToDelete == c)
+            b.SceneNodeToDelete = d;
+
+        return b;
+    }
+
+    function execute(c, b)
+    {
+        if (!c || !b) return;
+        
+        var a = null;
+        if (this.DeleteCurrentSceneNode) a = c;
+        else if (this.SceneNodeToDelete != -1)
+                a = b.getSceneNodeFromId(this.SceneNodeToDelete);
+        if (a != null)
+            b.addToDeletionQueue(a, this.TimeAfterDelete);
+    }
+}
+
+CL3D.Action.ActionCloneSceneNode = _Action_ActionCloneSceneNode;
+
+class _Action_ActionCloneSceneNode
+{
+    var Type = "ActionCloneSceneNode";
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.ActionCloneSceneNode();
+        b.SceneNodeToClone = this.SceneNodeToClone;
+        b.CloneCurrentSceneNode = this.CloneCurrentSceneNode;
+        b.TheActionHandler = this.TheActionHandler ? this.TheActionHandler.createClone(c, d) : null;
+        if (b.SceneNodeToClone == c)
+            b.SceneNodeToClone = d;
+        
+        return b;
+    }
+
+    function execute(f, e)
+    {
+        if (!f || !e) return;
+        
+        var c = null;
+        if (this.CloneCurrentSceneNode) c = f;
+        else if (this.SceneNodeToClone != -1)
+                c = e.getSceneNodeFromId(this.SceneNodeToClone);
+        if (c)
+        {
+            var h = c.Id;
+            var d = -1;
+            d = e.getUnusedSceneNodeId();
+            var b = c.createClone(c.Parent, h, d);
+            if (b != null) {
+                b.Id = d;
+                c.Parent.addChild(b);
+                e.replaceAllReferencedNodes(c, b);
+                var a = c.Selector;
+                if (a)
+                {
+                    var g = a.createClone(b);
+                    if (g)
+                    {
+                        b.Selector = g;
+                        if (e.getCollisionGeometry())
+                            e.getCollisionGeometry().addSelector(g);
+                    }
+                }
+                if (this.TheActionHandler)
+                    this.TheActionHandler.execute(b);
+            }
+        }
+    }
+};
+
+CL3D.Action.ActionPlayMovie = _Action_ActionPlayMovie;
+
+class _Action_ActionPlayMovie
+{
+    var Engine;
+    var Type = "ActionPlayMovie";
+
+    function _Action_ActionPlayMovie(a)
+    {
+        this.Engine = a;
+    }
+
+    function createClone(c, d)
+    {
+        var b = new CL3D.Action.ActionPlayMovie();
+
+        b.PlayLooped = this.PlayLooped;
+        b.Command = this.Command;
+        b.VideoFileName = this.VideoFileName;
+        b.SceneNodeToPlayAt = this.SceneNodeToPlayAt;
+        b.PlayAtCurrentSceneNode = this.PlayAtCurrentSceneNode;
+        b.MaterialIndex = this.MaterialIndex;
+        b.ActionHandlerFinished = this.ActionHandlerFinished ? this.ActionHandlerFinished.createClone(c, d) : null;
+        b.ActionHandlerFailed = this.ActionHandlerFailed ? this.ActionHandlerFailed.createClone(c, d) : null;
+        if (b.SceneNodeToPlayAt == c) b.SceneNodeToPlayAt = d;
+        
+        return b;
+    }
+
+    function execute(e, d)
+    {
+        if (!e || !d) return;
+
+        var a = null;
+        if (this.PlayAtCurrentSceneNode) a = e;
+        else if (this.SceneNodeToPlayAt != -1)
+                a = d.getSceneNodeFromId(this.SceneNodeToPlayAt);
+        var b = false;
+        var f = this.Engine.getOrCreateVideoStream(this.VideoFileName, this.Command == 0, this.ActionHandlerFinished, this.ActionHandlerFailed);
+        if (f != null)
+        {
+            switch (this.Command)
+            {
+                case 0:
+                    f.play(this.PlayLooped);
+                    if (a)
+                    {
+                        if (a.getType() == "2doverlay") a.setShowImage(f.texture);
+                        else
+                        {
+                            var c = a.getMaterial(this.MaterialIndex);
+                            if (c != null) c.Tex1 = f.texture;
+                        }
+                    }
+                    break;
+                case 1:
+                    f.pause();
+                    break;
+                case 2:
+                    f.stop();
+                    break;
+            }
+        }
+    }   
+};

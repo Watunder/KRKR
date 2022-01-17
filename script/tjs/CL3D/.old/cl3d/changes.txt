@@ -1,0 +1,649 @@
+---------------------------------------------
+CopperLicht 1.15
+---------------------------------------------
+
+- CopperCube 6.0 compatibility (WebGL 2, post effects, etc )
+
+
+---------------------------------------------
+CopperLicht 1.14
+---------------------------------------------
+
+- CopperCube 5.7.1 compatibility
+
+- Improved Pointer Lock support
+
+- Better foliage rendering
+
+- Replaced local files warning with updated information 
+
+
+---------------------------------------------
+CopperLicht 1.13
+---------------------------------------------
+
+- Added the possibility to render dynamic shadows using shadow maps.
+  This will use one single light, namely a directional light if it is in the scene, so this is mainly useful for outdoor scenes.
+  For this to work, just set ShadowMappingEnabled of your scene to true.
+  
+- Added a new tutorial showing how to use realtime 3D shadows
+  
+- There is now a new material type available which can be used to let grass, leaves and other vegetation
+  be moved by the wind.  There is no performance impact, since every movement is computed on the GPU.
+  parameters for this can be adjusted in the scene manager.
+
+- Added some new helper methods to 3D box, Vect2d and  Vertex3D
+
+- Added the possibility to create floating point render target textures
+
+- Particle system now has an optional flag to disable fog when rendering
+
+- Cube scene node now supports different sizes for Lenght, Height and Depth and has now 
+  better normals generated
+
+- Better error output for shader compilation errors
+
+
+---------------------------------------------
+CopperLicht 1.12
+---------------------------------------------
+
+- Better touch input handling
+
+- Compatibility with CopperCube 5.4.2
+
+- Fast collision detection for degenerated geometry
+
+- Fixed a bug causing the cloning of octree triangle selectors not to work anymore when compressing the source files using Google's closure.
+
+
+
+---------------------------------------------
+CopperLicht 1.11
+---------------------------------------------
+
+- Added support for loading .ccbz files.
+  Binary CopperCube files containing models and other data are now compressed. They are much smaller now, and download much quicker.
+  Previously, they had the extension .ccbjs, now the extension is .ccbz. The old .ccbjs files still work as well.
+  
+- Added a flag for enabling automatic full page rendering when starting the engine
+
+- Performance is now much better, on all browsers. 
+  Internally, the engine now uses requestAnimationFrame() if this turns out to perform better on the target browser	
+
+- OnMouseUp and OnMouseDown handlers can now be overwritten and indicate that the event has been handled by the user, otherwise
+  it will continue to be handled by the engine controllers
+  
+- Drawing 2D images can now be done either sharp or blurred, controlled by the last new added parameter.
+  
+ - Fixed a bug in the Vect3d::rotateXYBy function
+
+---------------------------------------------
+CopperLicht 1.10
+---------------------------------------------
+
+- Added support for fog rendering. Just enable fog for the scene by calling 
+	scene.setFog(true);
+  You can set fog color and density also with this function, for example by
+  scene.setFog(true, CL3D.createColor(1, 100, 100, 100), 0.1);
+  
+- Added support for loading additional files as scenes during runtime on-the-fly:
+  The CopperLicht::load() function now has two additional (optional) parameters: 
+	- importIntoExistingDocument: if set to true, this will load all scenes into the existing document. It won't replace the current
+		loaded data with the data from that file, but append it. This means that the scenes in the .ccbjs file will be added to the list of
+		existing scenes, instead of replacing them.
+	- functionToCallWhenLoaded (optional) a function to call when the file has been loaded 
+	
+- Compatbility with CopperCube 5.3
+
+- Added support for touch pinch gesture detection. 
+	Events like this will get sent to the event system as "mouse wheel events"
+	
+- The file loader interface now has the possibility of supplying a callback to be called when the data communcation with the server failed
+	
+- Fixed bug in collision detection tutorial causing collision not to work anymore.
+
+- Fixed problem causing animated meshes could get corrupted when additional scenes are loaded manually later during runtime.
+
+- Fixed a bug causing cloning of floating point colors to cause problems sometimes
+
+- Fixed a bug causing objects with collision turned on to 'pop' their position sometimes in rare circumstances
+
+---------------------------------------------
+CopperLicht 1.9
+---------------------------------------------
+
+- Added realtime reflecting water surfaces.
+  There is now a special scene node which renders water surfaces, which can be used to create rivers,
+  lakes, and oceans. It is highly configurable, so it can be used to create various, 
+  realistic looking water surfaces.
+  
+- Added support for rendering to textures. 
+  See CL3D.Renderer.setRenderTarget() and CL3D.Renderer.addRenderTargetTexture() for this.
+
+- Added support for inverting the depth test.
+  See CL3D.Renderer.setInvertedDepthTest() for this.
+  
+- Introduced the option to use callbacks for shader settings constants when creating your own materials.
+
+- Full screen with pointer lock now works again on Chrome. Previously, this stopped working
+  after Google changed their implementation.
+
+- Fixed 3D sound node to play sound looped even if set to 'play once'
+
+
+
+---------------------------------------------
+CopperLicht 1.8.1
+---------------------------------------------
+
+- CopperLicht is now open source 
+
+- Fixed a small bug causing collision not to work sometimes when there where animated meshes in a big static scene.
+
+
+---------------------------------------------
+CopperLicht 1.8
+---------------------------------------------
+
+- Implemented compatibility with CopperCube 5 (added support for terrain rendering, video playback, etc)
+
+- Added animation blending support. Use AnimatedMeshSceneNode::setAnimationBlending() for this.
+
+- Added directional light support. Use CL3D.Light::IsDirectional for this.
+
+- Compatibility with iOS 8 - CopperLicht should now work on this as well
+
+- Touch aware browser support improved: Touch-End event wasn't recognized by some browsers sometimes
+
+- Debug texts and error texts are now in in a separate CSS class named 'cldebug', so you can easily hide this on your website.
+
+- There is now a new class CL3D.BoundingBoxTriangleSelector for doing collision detection based on a simplified bounding box around the object
+
+- Fixed bug in proximity animtor which caused it not to work when not created from the editor
+
+- Various small API enhancements:
+	- OctTreeTriangleSelector and MeshTriangleSelector have a new parameter in the contstructor in order to let them ignore a specific material type for collision
+	- Box3d has a new method isEmpty()
+
+- There is a new built-in material, named EMT_SOLID_VERTEX_ALPHA_TWO_TEXTURE_BLEND: 
+  A solid material, blends based on vertex alpha between the two set textures. Used for terrain rendering.
+  
+- Fixed a bug causing MeshBuffer::clone() not to create a real copy of a mesh buffer
+
+- Lots of documentation improvements 
+
+---------------------------------------------
+CopperLicht 1.7.2
+---------------------------------------------
+
+- Added support for switching to fullscreen. Use CopperLicht.switchToFullscreen() for this. 
+  Will work in Chrome, Firefox and InternetExplorer.
+
+- Added support for pointer lock. Use CopperLicht.switchToFullscreen() with the first parameter set to 'true' for this.
+
+- Redesigned internal key and mouse event handling system for click and mouse animators: 
+  These  are now handled instantly, previously they were processed during the next frame. For large, slow scenes, 
+  this could cause a small delay, sometimes. Also, with this change, it is now possible to do system calls which relied on instant 
+  event processing for security reasons (like switching to full screen).
+
+- Touch events are now supported and translated into click events.
+
+- Cameras now auto adjust the aspect ratio if it is initially set to 0
+
+---------------------------------------------
+CopperLicht 1.7.1
+---------------------------------------------
+
+- Added removeSelector() method to MetaTriangleSelector in order to be able to dynamically remove collision geometry again
+
+- TriangleSelectors now have a new method createClone() so they can be cloned as well
+
+- EMT_TRANSPARENT_ALPHA_CHANNEL_REF material now also works with dynamic light
+
+- Clearer error messages for the latest Chrome and Firefox versions when working with local files
+
+
+---------------------------------------------
+CopperLicht 1.7
+---------------------------------------------
+
+- Now also works with Internet Explorer 11
+
+- Added support for the EMT_TRANSPARENT_ALPHA_CHANNEL_REF material
+
+- Improved Collision Dection
+
+---------------------------------------------
+CopperLicht 1.6.3
+---------------------------------------------
+
+- Works now also nicely on Chrome for Android
+
+- Implemented compatibility with CopperCube 4.2 (that is, normal map support for example)
+
+- All shaders now have access to a variable 'worldtransform', storing the world transformation of the current object.
+
+- Fixed a bug in scripting engine in the WebGL target causing changing target and upvector of cameras not to work sometimes
+
+- Fixed a bug causing animated meshes sometimes not to be lighted correctly when rotated
+
+
+---------------------------------------------
+CopperLicht 1.6.2
+---------------------------------------------
+
+- Fixed a problem causing model viewer cameras not to work anymore in Chrome 27 in the WebGL target.
+
+- Implemented compatibility with CopperCube 4.0.4
+
+- Light scene nodes didn't return their type for a getType() call, this is fixed now.
+
+
+---------------------------------------------
+CopperLicht 1.6.1
+---------------------------------------------
+
+- Improved font rendering: Text is now more clearly readable
+
+- Implemented compatibility with CopperCube 4.0.3
+
+- Fixed a small memory leak when drawing particle systems
+
+- Fixed a bug which caused a cloned mesh scene node not to clone its mesh but to reuse the mesh reference.
+
+- Fixed a bug causing the wrong amount of materials to be returned from animated meshes
+
+
+---------------------------------------------
+CopperLicht 1.6 
+---------------------------------------------
+
+- Added support for Particle Systems. Use the ParticleSceneNode to create smoke, fire, rain, fog, whatever you like.
+
+- There is now a mobile 2d input scene node available which behaves like the overlay 2d scene node and can be used
+  to emulate keyboard input for games on touchscreen devices like phones, tablets and similar.
+
+- The Overlay2D Scene node now supports multi-line text. Also, the text drawing API has been extended for configurating text more precicely (fonts, colors, alignment, etc)
+  
+- CopperLicht now has an automatic loading screen when loading. You can disable it by setting the parameter 'loadingScreenText' of startCopperLichtFromFile to null.
+
+- Billboard rendering speed has been increased by a factor of about 600%
+
+- Vector3D now has functions to interpolate between vectors, and to rotate it along all three axes.
+
+- Light scene nodes with visibilty set to 'false' now no longer cast light. So you can dynamically switch on and off lights now easily.
+
+- Full compatibility with the CopperCube 4 editor
+
+
+---------------------------------------------
+CopperLicht 1.5
+---------------------------------------------
+
+- Added support for vertex colors. You can colorize each part of each 3d geometry separately now. 
+  CL3D.Vertex3D has a member named 'Color', using this causes 3d models to be colorized.
+
+- Dynamic lighting is now more physically correct. 
+  In fact, it is now exactly looking as in the fixed function pipeline of Direct3D and OpenGL
+
+- Changed default rotation speed for the CameraModelViewer animator to be more useful.
+
+- Fixed a bug causing stopping of sounds not to work
+
+- Fixed a bug causing animations not to be played when setting a frame loop which exceeded the maximal existing frame amount.
+
+- Full support for all CopperCube 3.1 features
+
+
+---------------------------------------------
+CopperLicht 1.4.2
+---------------------------------------------
+
+- Big performance increase in all parts of the engine: Removed code initializing Vect3D unnecessarily
+
+- Fixed a bug causing the scene not to load when a StopSound action was used.
+
+- Fixed a bug causing AnimatorOnProximity not to call the function it was supposed to call
+
+- Fixed a bug causing the field of view to be changed when a first person shooter camera was loaded from a .ccbjs file.
+
+- Fixed a bug causing a "Set Animation" action not to work when read from a .ccbjs file
+
+
+---------------------------------------------
+CopperLicht 1.4.1
+---------------------------------------------
+
+- Added documentation for the dynamic light feature
+
+- Fixed a bug causing transparent Billboards not to be sorted correctly
+
+- Fixed a bug causing folder scene nodes (=dummy scene nodes) from Coppercube not to be drawn correctly
+
+
+---------------------------------------------
+CopperLicht 1.4
+---------------------------------------------
+
+- Dynamic light is now supported.
+
+- CopperLicht now supports the backface culling flag for every material. Enabling a way to use double sided
+  materials in the 3D scene.
+  
+- Internet Explorer is now supported as well. Although this browser doesn't support WebGL, you can run CopperLicht now
+  perfectly using the IEWebGL plugin. There is also now a copperlicht_ie.js file available on our website to
+  help you using CopperLicht in InternetExplorer.
+  
+- CopperLicht now supports all features of Coppercube 3
+  
+- Updated to support new features of the CopperCube editor (i.e. dynamic frames per second counter)
+
+- Fixed a bug in firefox: When playing animated meshes in a WebGL scene, firefox got slower and slower.
+  This is caused by a memory leak bug in firefox, but CopperLicht is now aware of this and improves the situation.
+  
+- All triangle selectors now have the option to specify a node to ignore, which is useful to
+  prevent collisions for example of a scene node against itself.
+  
+- Pressing keys assigned to behaviors or actions like camera controllers will no
+  longer cause that key presses to propagate to the browser, causing it to for example scroll unwantedly.
+  
+---------------------------------------------
+CopperLicht 1.3.7
+---------------------------------------------
+
+- Firefox 5 doesn't allow loading textures from different domains (and from local disk) anymore. There is now an error message indicating this problem.
+
+- Added a new parameter to the CopperLicht class constructor which shows a frames per second counter
+
+- Fixed a bug cauing Mesh.createClone() not to work correctly.
+
+---------------------------------------------
+CopperLicht 1.3.6
+---------------------------------------------
+
+- Added 3rd person camera animator
+
+- Added public getChildren() method to scene node
+
+- Fixed scenenode.removeAnimator()
+
+---------------------------------------------
+CopperLicht 1.3.5
+---------------------------------------------
+
+- fixed wrong mouse position in firefox 4
+
+- fixed several problems leading to compilation errors when using copperlicht with google closure
+
+- collision tests done with getCollisionPointWithLine now also can ignore invisible scene nodes
+
+---------------------------------------------
+CopperLicht 1.3.4
+---------------------------------------------
+
+- Improved rendering speed of billboards by a factor of about 40
+
+- Fixed a bug causing the scene only to partially show up in WebGL if 'play sound' action is used
+
+- Fixed a bug when drawing materials for lightmaps generated in CopperCube, when only using vertex colors
+
+
+---------------------------------------------
+CopperLicht 1.3.3
+---------------------------------------------
+
+- Collision detection and response system has been optimized and is much faster now. You
+  probably need to adjust your gravity values to make your old scenes work as before with this version.
+  
+- It is now possible to acccess variables set and changed by CopperCube actions and behaviors using
+  the CL3D.CopperCubeVariable interface
+  
+- The AnimatorCameraFPS now has a new method to change the mouse input method: 
+  setLookByMouseDown
+  
+- The AnimatorCameraFPS has been changed to only move the camera look direction
+  when the mouse is moved.
+
+- The ChangeSceneNodeTexture action is now also able to change the image of overlay scene nodes
+
+- Fixed a bug causing the 'when a cursor moved over do something' behavior created 
+  by CopperCube to trigger also when the object is hidden behind another object.
+  
+- Added a method isMouseOverCanvas() to the engine to return if the mouse is currently over the canvas
+
+- The mouse positions are now also correct if the canvas is embedded in a div with relative position
+
+----------------------------------------------
+CopperLicht 1.3.2
+---------------------------------------------
+
+- There is a new Material available now: EMT_REFLECTION_2_LAYER, a
+  simple fake reflection.
+  
+- There is a new Material available now: EMT_TRANSPARENT_REFLECTION_2_LAYER, a
+  simple fake reflection similar to the new EMT_REFLECTION_2_LAYER, but supporting  
+  a transparent alpha channel.
+  
+- Small performance boost (10%) by optmizing renderer implementation
+
+- Added new shader variables set by copperlicht: 'modelviewtransform' and 'normaltransform'.
+
+- Added method 'getTransposed()' to matrix4
+
+- Fixed a bug causing cloning of CubeSceneNodes not to work
+
+- Fixed bounding box of billboard scene node
+
+- Added support for some new features introduced in CopperCube 2.2,
+  like Variable support.
+  
+- Fixed a bug when making the next camera active
+
+- Fixed font rendering by 2D Overlays: Now working again with latest Chrome and Firefox
+
+- Fixed bug in Overlay2D scene causing call to setShowBackgroundColor() throw an exception	
+
+----------------------------------------------
+CopperLicht 1.3.1
+---------------------------------------------
+
+- Fixed bug causing view frustrums not to work
+
+----------------------------------------------
+CopperLicht 1.3.0
+---------------------------------------------
+
+- The JavaScript library CopperLicht is now placed in the namespace CL3D. 
+  Note that when creating new instaces of or accessing CopperLicht classes, you need
+  to prefix it with the new namespace. Creating a 3d vector for example previously 
+  worked like this:
+	var v = new Vect3d();
+  now works like this:
+    var v = new CL3D.Vect3d();
+  This also makes it compatible for using it with other libraries, for example
+  jQuery.
+  
+- The source of the library is now only minificated and not obfuscated anymore, 
+  making it much easier to debug it.
+  
+- Added a OnChangeMaterial callback to Renderer for more fine grained control over 
+  modifying shader variables.
+  
+- The 'Core' class has been removed. All its functions are now inside the
+  CL3D namespace
+  
+- Shaders in tutorial 5 have been updated to work with latest WebGL browsers.
+
+- Fixed a bug causing cursor keys not to work correctly with the AnimatorCameraFPS
+  in Chrome, sometimes
+  
+- Added a createClone() function to meshes to create a copy of a mesh
+  
+----------------------------------------------
+CopperLicht 1.2.3
+---------------------------------------------
+
+- Fixed bug causing latest Chrome not to show
+  textures in some examples
+  
+----------------------------------------------
+CopperLicht 1.2.2
+---------------------------------------------
+
+- Fixed bug causing in newer WebGL implementations
+  not to show textures when using non-power-of-2 textures
+
+----------------------------------------------
+CopperLicht 1.2.1
+---------------------------------------------
+
+- The Overlay2DSceneNode now has a method 'setText' to
+  display text
+  
+- Quaternion class now has the new functions
+	toEuler()
+	setFromEuler()
+	normalize()
+	
+- Fixed Matrix4.getRotationDegrees, it didn't deliver
+  correct results   
+  
+- Material.EMT_SOLID now is defined (wasn't previously)
+
+- Introduced new class: Line3d
+  
+- Added support for some new features introduced in CopperCube 2:
+	- folder scene node
+	- timer behavior / animator
+	- keypress behavior / animator
+	- game ai behavior / animator
+	- shoot action
+	- change 2d overlay text action	
+	
+- Fixed a bug which caused collision of OctTree Triangle selectors
+  not to work correctly when the static mesh had a translation.
+	
+- Fixed bounding box of animated meshes. Sometimes this would
+  be wrong if multiple animated meshes have been in the scene.
+  
+- Fixed a problem causing error when reporting invalid shader code
+
+----------------------------------------------
+CopperLicht 1.2.0
+---------------------------------------------
+
+- Renderer now has 2d drawing capabilities. The 
+  following functions have been added:
+	- draw2DRectangle
+	- draw2DImage
+  Both support alpha blending.
+	
+- Fixed sceneNode::getTransformedBoundingBox
+
+- Texture now has two new functions:
+	getWidth
+	getHeight
+	
+- Improved error messages for shader compilation
+
+- It is now possible to delete textures using
+  Renderer.deleteTexture()
+  
+- It is now possible to create a texture from a 
+  2D canvas using
+  Renderer.createTextureFrom2DCanvas()
+  
+- Updated to latest Firefox and Chrome/Webkit
+  changes: WebGLFloatArray is now named Float32Array
+
+----------------------------------------------
+CopperLicht 1.1.2
+---------------------------------------------
+
+- Updated to latest revision of WebGL spec: 
+	- Mandatory fragment shader validation.
+	- New texImage2D call signature.
+	
+ Of course, Copperlicht will still run with older
+ WebGL browsers as well.
+
+----------------------------------------------
+CopperLicht 1.1.1
+---------------------------------------------
+
+- Fixed bug with AnimatorOnClick causing not to work with some scene nodes.
+
+----------------------------------------------
+CopperLicht 1.1.0
+---------------------------------------------
+
+- Skeletal Animations and Animated meshes are now supported. Character animation
+  is now possible with CopperLicht. There is a new tutorial showing how.
+  
+- Fixed a bug causing textures not to appear on some systems with old 
+  3d drivers.
+  
+- Added Quaternion support 
+  
+- Added the method recalculateBoundingBox() to MeshBuffer
+
+----------------------------------------------
+CopperLicht 1.0.3
+---------------------------------------------
+
+- Fixed a bug causing multiple cube scene nodes to share the same 
+  3d position
+  
+----------------------------------------------
+CopperLicht 1.0.2
+---------------------------------------------
+
+- Fixed a bug causing the camera matrix not to be updated correctly 
+ ('camera stutter problem') when changing the camera position in OnBeforeDraw().
+  
+- Now supporting the new 'On Cursor moved over do something' behavior of the
+  CopperCube 3d editor
+
+----------------------------------------------
+CopperLicht 1.0.1
+---------------------------------------------
+- Collision detection and response has now been implemented. Take a look at the new available
+  TriangleSelector classes and the collisionResponseSceneNodeAnimator. There is also a new 
+  tutorial explaining how to do collision detection and response.
+
+- Added the possibility to create custom shaders and materials using Renderer.createMaterialType.
+  There is a new tutorial available explaining how to create new materials and shaders
+  
+- Added a new scene node: Cube scene node.
+
+- Added new class: Triangle3d for doing easy 3d collision calculations with 3d triangles
+
+- Skybox scene node now also usable without the need of the editor, CopperCube.
+
+- Fixed a bug causing scene nodes not to be able to be cloned.
+
+- Billboard material now correctly set when cloned
+
+- Fixed a bug causing a wrong Frames per second value to be used when manually changing the fps.
+
+- Vect3d::set and Vect3d::setTo now available
+
+- All matrix4 functions where not public previously, this has changed now
+
+- Fixed a bug causing AnimatorFollowPath not to work correctly ('EFPFEM_START_AGAIN not found').
+
+- Added new methods addInternalPoint, getEdges and addInternalPointByVector to Box3d
+
+- Added method GetPolyCount() to Mesh
+
+----------------------------------------------
+CopperLicht 1.0 alpha 1b
+---------------------------------------------
+- Fixed a bug causing copperLicht not to work
+  on serveral versions of MacOSX
+
+----------------------------------------------
+CopperLicht 1.0 alpha 1
+---------------------------------------------
+- Initial Release

@@ -1,0 +1,676 @@
+CL3D.MeshCache = _MeshCache;
+
+class _MeshCache
+{
+    var Meshes = new Array();
+
+    function _MeshCache() {}
+
+    function getMeshFromName(a)
+    {
+        for (var c = 0; c < this.Meshes.length; ++c)
+        {
+            var b = this.Meshes[c];
+            if (b.Name == a) return b;
+        }
+        return null;
+    }
+
+    function addMesh(a)
+    {
+        if (a != null) this.Meshes.push(a);
+    }
+};
+
+CL3D.SkinnedMeshJoint = _SkinnedMeshJoint;
+
+class _SkinnedMeshJoint
+{
+    var Name = "";
+    var LocalMatrix = new CL3D.Matrix4();
+    var Children = new Array();
+    var AttachedMeshes = new Array();
+    var PositionKeys = new Array();
+    var ScaleKeys = new Array();
+    var RotationKeys = new Array();
+    var Weights = new Array();
+    var StaticCollisionBoundingBox = new CL3D.Box3d();
+    var GlobalMatrix = new CL3D.Matrix4();
+    var GlobalAnimatedMatrix = new CL3D.Matrix4();
+    var LocalAnimatedMatrix = new CL3D.Matrix4();
+    var Animatedposition = new CL3D.Vect3d(0, 0, 0);
+    var Animatedscale = new CL3D.Vect3d(1, 1, 1);
+    var Animatedrotation = new CL3D.Quaternion();
+    var GlobalInversedMatrix = new CL3D.Matrix4();
+    var GlobalSkinningSpace = false;
+    var positionHint = -1;
+    var scaleHint = -1;
+    var rotationHint = -1;
+
+    function _SkinnedMeshJoint() {}
+};
+
+CL3D.SkinnedMeshWeight = _SkinnedMeshWeight;
+
+class _SkinnedMeshWeight
+{
+    var buffer_id = 0;
+    var vertex_id = 0;
+    var strength = 0;
+    var StaticPos = new CL3D.Vect3d();
+    var StaticNormal = new CL3D.Vect3d();
+
+    function _SkinnedMeshWeight() {}
+};
+
+CL3D.SkinnedMeshScaleKey = _SkinnedMeshScaleKey;
+
+class _SkinnedMeshScaleKey
+{
+    var frame = 0;
+    var scale = new CL3D.Vect3d();
+
+    function _SkinnedMeshScaleKey() {}
+};
+
+CL3D.SkinnedMeshPositionKey = _SkinnedMeshPositionKey;
+
+class _SkinnedMeshPositionKey
+{
+    var frame = 0;
+    var position = new CL3D.Vect3d();
+
+    function _SkinnedMeshPositionKey() {}
+};
+
+CL3D.SkinnedMeshRotationKey = _SkinnedMeshRotationKey;
+
+class _SkinnedMeshRotationKey
+{
+    var frame = 0;
+    var rotation = new CL3D.Quaternion()
+
+    function _SkinnedMeshRotationKey() {}
+};
+
+CL3D.NamedAnimationRange = _NamedAnimationRange;
+
+class _NamedAnimationRange
+{
+    var Name = "";
+    var Begin = 0;
+    var End = 0;
+    var FPS = 0
+
+    function _NamedAnimationRange() {}
+};
+
+CL3D.SkinnedMesh = _SkinnedMesh;
+
+class _SkinnedMesh
+{
+    var Name = "";
+    var AnimatedMeshesToLink = new Array();
+    var AnimationFrames = 0;
+    var LocalBuffers = new Array();
+    var AllJoints = new Array();
+    var RootJoints = new Array();
+    var DefaultFPS = 0;
+    var HasAnimation = false;
+    var PreparedForSkinning = false;
+    var LastAnimatedFrame = 0;
+    var LastSkinnedFrame = 0;
+    var BoneControlUsed = 0;
+    var BoundingBox = new CL3D.Box3d();
+    var InterpolationMode = 1;
+    var Vertices_Moved = new Array();
+    var skinDoesNotMatchJointPositions = true;
+    var NamedAnimationRanges = new Array();
+
+    function _SkinnedMesh() {}
+
+    function AddMeshBuffer(a)
+    {
+        this.LocalBuffers.push(a);
+    }
+
+    function getFrameCount()
+    {
+        return Math.floor(this.AnimationFrames);
+    }
+
+    function getBoundingBox()
+    {
+        return this.BoundingBox;
+    }
+
+    function finalize()
+    {
+        this.LastAnimatedFrame = -1;
+        this.LastSkinnedFrame = -1;
+        var g = 0;
+        var f = 0;
+        var h;
+        var d;
+        for (var k = 0; k < this.AllJoints.length; ++k)
+        {
+            var m = false;
+            for (g = 0; g < this.AllJoints.length; ++g)
+            {
+                d = this.AllJoints[g];
+                for (var c = 0; c < d.Children.length; ++c)
+                {
+                    if (d.Children[c] === this.AllJoints[k])
+                        m = true;
+                }
+            }
+            if (!m) this.RootJoints.push(this.AllJoints[k]);
+        }
+        for (g = 0; g < this.LocalBuffers.length; ++g)
+        {
+            var b = new Array();
+            this.Vertices_Moved.push(b);
+            h = this.LocalBuffers[g];
+
+            var a = h.Vertices.length;
+            for (var l = 0; l < a; ++l)
+            {
+                b.push(false);
+            }
+        }
+        this.checkForAnimation();
+        this.CalculateGlobalMatrices(null, null);
+        for (g = 0; g < this.AllJoints.length; ++g)
+        {
+            d = this.AllJoints[g];
+            for (f = 0; f < d.AttachedMeshes.length; ++f)
+            {
+                h = this.LocalBuffers[d.AttachedMeshes[f]];
+                h.Transformation = d.GlobalAnimatedMatrix.clone();
+            }
+        }
+        if (this.LocalBuffers.length == 0)
+        {
+            this.BoundingBox.MinEdge.set(0, 0, 0);
+            this.BoundingBox.MaxEdge.set(0, 0, 0);
+        }
+        else
+        {
+            h = this.LocalBuffers[0];
+            this.BoundingBox.MinEdge = h.Box.MinEdge.clone();
+            this.BoundingBox.MaxEdge = h.Box.MaxEdge.clone();
+            for (g = 1; g < this.LocalBuffers.length; ++g)
+            {
+                h = this.LocalBuffers[g];
+                if (h.Transformation == null)
+                {
+                    this.BoundingBox.addInternalPointByVector(h.Box.MinEdge);
+                    this.BoundingBox.addInternalPointByVector(h.Box.MaxEdge);
+                }
+                else
+                {
+                    var e = h.Box.clone();
+                    h.Transformation.transformBoxEx(e);
+                    this.BoundingBox.addInternalPointByVector(e.MinEdge);
+                    this.BoundingBox.addInternalPointByVector(e.MaxEdge);
+                }
+            }
+        }
+    }
+
+    function checkForAnimation()
+    {
+        this.HasAnimation = false;
+        var f = 0;
+        var e = 0;
+        var g;
+        var c;
+        for (f = 0; f < this.AllJoints.length; ++f)
+        {
+            c = this.AllJoints[f];
+            if (c.PositionKeys.length || c.ScaleKeys.length || c.RotationKeys.length || c.Weights.length)
+            {
+                this.HasAnimation = true;
+                break;
+            }
+        }
+        if (this.HasAnimation)
+        {
+            this.AnimationFrames = 0;
+            for (f = 0; f < this.AllJoints.length; ++f)
+            {
+                c = this.AllJoints[f];
+                if (c.PositionKeys.length)
+                {
+                    var h = c.PositionKeys[c.PositionKeys.length - 1];
+                    if (h.frame > this.AnimationFrames)
+                        this.AnimationFrames = h.frame;
+                }
+                if (c.ScaleKeys.length)
+                {
+                    var l = c.ScaleKeys[c.ScaleKeys.length - 1];
+                    if (l.frame > this.AnimationFrames)
+                        this.AnimationFrames = l.frame;
+                }
+                if (c.RotationKeys.length)
+                {
+                    var m = c.RotationKeys[c.RotationKeys.length - 1];
+                    if (m.frame > this.AnimationFrames)
+                        this.AnimationFrames = m.frame;
+                }
+            }
+        }
+        if (this.HasAnimation && !this.PreparedForSkinning)
+        {
+            this.PreparedForSkinning = true;
+            for (f = 0; f < this.AllJoints.length; ++f)
+            {
+                c = this.AllJoints[f];
+                for (e = 0; e < c.Weights.length; ++e)
+                {
+                    var k = c.Weights[e];
+                    var d = k.buffer_id;
+                    var b = k.vertex_id;
+                    g = this.LocalBuffers[d];
+                    var a = g.Vertices[b];
+                    k.StaticPos = a.Pos.clone();
+                    k.StaticNormal = a.Normal.clone();
+                }
+            }
+        }
+    }
+
+    function CalculateGlobalMatrices(d, c)
+    {
+        if (d == null && c != null) return;
+        
+        if (d == null)
+        {
+            for (var b = 0; b < this.RootJoints.length; ++b)
+            {
+                this.CalculateGlobalMatrices(this.RootJoints[b], null);
+            }
+            return;
+        }
+        if (c == null) d.GlobalMatrix = d.LocalMatrix.clone();
+        else d.GlobalMatrix = c.GlobalMatrix.multiply(d.LocalMatrix);
+
+        d.LocalAnimatedMatrix = d.LocalMatrix.clone();
+        d.GlobalAnimatedMatrix = d.GlobalMatrix.clone();
+        if (d.GlobalInversedMatrix.isIdentity())
+        {
+            d.GlobalInversedMatrix = d.GlobalMatrix.clone();
+            d.GlobalInversedMatrix.makeInverse();
+        }
+        for (var a = 0; a < d.Children.length; ++a)
+        {
+            this.CalculateGlobalMatrices(d.Children[a], d);
+        }
+    }
+
+    function isStatic()
+    {
+        return !this.HasAnimation;
+    }
+
+    function animateMesh(b, g)
+    {
+        if (!this.HasAnimation || (CL3D.equals(this.LastAnimatedFrame, b) && (g == 1)))
+            return false;
+        
+        this.LastAnimatedFrame = b;
+        if (g < 0) return false;
+        
+        if (CL3D.equals(g, 1))
+        {
+            for (var e = 0; e < this.AllJoints.length; ++e)
+            {
+                var d = this.AllJoints[e];
+                var f = d.Animatedposition.clone();
+                var c = d.Animatedscale.clone();
+                var k = d.Animatedrotation.clone();
+                this.getFrameData(b, d, f, d.positionHint, c, d.scaleHint, k, d.rotationHint);
+                d.Animatedposition = f.clone();
+                d.Animatedscale = c.clone();
+                d.Animatedrotation = k.clone();
+            }
+        }
+        else
+        {
+            for (var e = 0; e < this.AllJoints.length; ++e)
+            {
+                var d = this.AllJoints[e];
+                var a = d.Animatedposition.clone();
+                var h = d.Animatedscale.clone();
+                var j = d.Animatedrotation.clone();
+                var f = a.clone();
+                var c = h.clone();
+                var k = j.clone();
+                this.getFrameData(b, d, f, d.positionHint, c, d.scaleHint, k, d.rotationHint);
+                d.Animatedposition = a.getInterpolated(f, g);
+                d.Animatedscale = h.getInterpolated(c, g);
+                d.Animatedrotation.slerp(j, k, g);
+            }
+        }
+        this.buildAll_LocalAnimatedMatrices();
+        this.skinDoesNotMatchJointPositions = true;
+        return true;
+    };
+
+    function getFrameData(n, x, v, l, w, r, o, h)
+    {
+        var s = -1;
+        var m = -1;
+        var d = -1;
+        var c = x.PositionKeys;
+        var t = x.ScaleKeys;
+        var a = x.RotationKeys;
+        var g;
+        var b;
+        var q;
+        var p;
+        var k;
+        var j;
+        if (c.length)
+        {
+            s = -1;
+            if (s == -1)
+            {
+                for (p = 0; p < c.length; ++p)
+                {
+                    g = c[p];
+                    if (g.frame >= n)
+                    {
+                        s = p;
+                        l = p;
+                        break;
+                    }
+                }
+            }
+            if (s != -1)
+            {
+                if (this.InterpolationMode == 0 || s == 0) {
+                    g = c[s];
+                    v = g.position.clone();
+                }
+                else
+                {
+                    if (this.InterpolationMode == 1)
+                    {
+                        g = c[s];
+                        var f = c[s - 1];
+                        k = n - g.frame;
+                        j = f.frame - n;
+                        v.setTo(f.position.substract(g.position).multiplyThisWithScalReturnMe(1 / (k + j)).multiplyThisWithScalReturnMe(k).addToThisReturnMe(g.position));
+                    }
+                }
+            }
+        }
+        if (t.length)
+        {
+            m = -1;
+            if (m == -1)
+            {
+                for (p = 0; p < t.length; ++p)
+                {
+                    b = t[p];
+                    if (b.frame >= n)
+                    {
+                        m = p;
+                        r = p;
+                        break;
+                    }
+                }
+            }
+            if (m != -1)
+            {
+                if (this.InterpolationMode == 0 || m == 0)
+                {
+                    b = t[m];
+                    w = b.scale.clone()
+                }
+                else if (this.InterpolationMode == 1)
+                {
+                        b = t[m];
+                        var u = t[m - 1];
+                        k = n - b.frame;
+                        j = u.frame - n;
+                        w.setTo(u.scale.substract(b.scale).multiplyThisWithScalReturnMe(1 / (k + j)).multiplyThisWithScalReturnMe(k).addToThisReturnMe(b.scale));
+                    }
+                }
+            }
+        }
+        if (a.length)
+        {
+            d = -1;
+            if (d == -1)
+            {
+                for (p = 0; p < a.length; ++p)
+                {
+                    q = a[p];
+                    if (q.frame >= n)
+                    {
+                        d = p;
+                        h = p;
+                        break;
+                    }
+                }
+            }
+            if (d != -1)
+            {
+                if (this.InterpolationMode == 0 || d == 0)
+                {
+                    q = a[d];
+                    o = q.rotation.clone();
+                }
+                else if (this.InterpolationMode == 1)
+                {
+                        q = a[d];
+                        var e = a[d - 1];
+                        k = n - q.frame;
+                        j = e.frame - n;
+                        o.slerp(q.rotation, e.rotation, k / (k + j));
+                    }
+                }
+            }
+        }
+    }
+
+    function buildAll_LocalAnimatedMatrices()
+    {
+        for (var b = 0; b < this.AllJoints.length; ++b)
+        {
+            var d = this.AllJoints[b];
+            if (d.PositionKeys.length || d.ScaleKeys.length || d.RotationKeys.length)
+            {
+                if (!d.Animatedrotation)
+                    d.Animatedrotation = new CL3D.Quaternion();
+                if (!d.Animatedposition)
+                    d.Animatedposition = new CL3D.Vect3d();
+
+                d.LocalAnimatedMatrix = d.Animatedrotation.getMatrix();
+                var a = d.LocalAnimatedMatrix;
+                var c = d.Animatedposition;
+                a.m00 += c.X * a.m03;
+                a.m01 += c.Y * a.m03;
+                a.m02 += c.Z * a.m03;
+                a.m04 += c.X * a.m07;
+                a.m05 += c.Y * a.m07;
+                a.m06 += c.Z * a.m07;
+                a.m08 += c.X * a.m11;
+                a.m09 += c.Y * a.m11;
+                a.m10 += c.Z * a.m11;
+                a.m12 += c.X * a.m15;
+                a.m13 += c.Y * a.m15;
+                a.m14 += c.Z * a.m15;
+                a.bIsIdentity = false;
+                d.GlobalSkinningSpace = false;
+                if (d.ScaleKeys.length && d.Animatedscale && !d.Animatedscale.equalsByNumbers(1, 1, 1))
+                {
+                    c = d.Animatedscale;
+                    a.m00 *= c.X;
+                    a.m01 *= c.X;
+                    a.m02 *= c.X;
+                    a.m03 *= c.X;
+                    a.m04 *= c.Y;
+                    a.m05 *= c.Y;
+                    a.m06 *= c.Y;
+                    a.m07 *= c.Y;
+                    a.m08 *= c.Z;
+                    a.m09 *= c.Z;
+                    a.m10 *= c.Z;
+                    a.m11 *= c.Z;
+                }
+            }
+            else d.LocalAnimatedMatrix = d.LocalMatrix.clone();
+        }
+    }
+
+    function updateBoundingBox()
+    {
+        this.BoundingBox.MinEdge.set(0, 0, 0);
+        this.BoundingBox.MaxEdge.set(0, 0, 0);
+        if (this.LocalBuffers.length)
+        {
+            var a = this.LocalBuffers[0];
+            a.recalculateBoundingBox();
+            this.BoundingBox.MinEdge = a.Box.MinEdge.clone();
+            this.BoundingBox.MaxEdge = a.Box.MaxEdge.clone();
+            for (var c = 1; c < this.LocalBuffers.length; ++c)
+            {
+                a = this.LocalBuffers[c];
+                a.recalculateBoundingBox();
+                if (a.Transformation == null)
+                {
+                    this.BoundingBox.addInternalPointByVector(a.Box.MinEdge);
+                    this.BoundingBox.addInternalPointByVector(a.Box.MaxEdge);
+                }
+                else
+                {
+                    var b = a.Box.clone();
+                    a.Transformation.transformBoxEx(b);
+                    this.BoundingBox.addInternalPointByVector(b.MinEdge);
+                    this.BoundingBox.addInternalPointByVector(b.MaxEdge);
+                }
+            }
+        }
+    }
+
+    function buildAll_GlobalAnimatedMatrices(e, d)
+    {
+        if (e == null)
+        {
+            for (var c = 0; c < this.RootJoints.length; ++c)
+            {
+                var a = this.RootJoints[c];
+                this.buildAll_GlobalAnimatedMatrices(a, null);
+            }
+            return;
+        }
+        else
+        {
+            if (d == null || e.GlobalSkinningSpace)
+                e.GlobalAnimatedMatrix = e.LocalAnimatedMatrix.clone();
+            else
+                e.GlobalAnimatedMatrix = d.GlobalAnimatedMatrix.multiply(e.LocalAnimatedMatrix);
+        }
+        for (var b = 0; b < e.Children.length; ++b)
+        {
+            this.buildAll_GlobalAnimatedMatrices(e.Children[b], e);
+        }
+    }
+
+    function skinMesh(f)
+    {
+        if (!this.HasAnimation) return;
+        
+        this.skinDoesNotMatchJointPositions = false;
+        this.buildAll_GlobalAnimatedMatrices(null, null);
+        var e = 0;
+        var d = 0;
+        var b;
+        for (e = 0; e < this.AllJoints.length; ++e)
+        {
+            var g = this.AllJoints[e];
+            for (d = 0; d < g.AttachedMeshes.length; ++d)
+            {
+                b = this.LocalBuffers[g.AttachedMeshes[d]];
+                b.Transformation = g.GlobalAnimatedMatrix.clone();
+            }
+        }
+        for (e = 0; e < this.LocalBuffers.length; ++e)
+        {
+            var c = this.Vertices_Moved[e];
+            for (d = 0; d < c.length; ++d)
+            {
+                c[d] = false;
+            }
+        }
+        for (e = 0; e < this.RootJoints.length; ++e)
+        {
+            var a = this.RootJoints[e];
+            this.skinJoint(a, null, f);
+        }
+    }
+
+    function skinJoint(e, b, l)
+    {
+        if (e.Weights.length)
+        {
+            var n = e.GlobalAnimatedMatrix.multiply(e.GlobalInversedMatrix);
+            var d = new CL3D.Vect3d();
+            var c = new CL3D.Vect3d();
+            var f = this.LocalBuffers;
+            var m;
+            var a;
+            for (var h = 0; h < e.Weights.length; ++h)
+            {
+                var k = e.Weights[h];
+                n.transformVect2(d, k.StaticPos);
+                if (l) n.rotateVect2(c, k.StaticNormal);
+
+                m = f[k.buffer_id];
+                a = m.Vertices[k.vertex_id];
+                if (!this.Vertices_Moved[k.buffer_id][k.vertex_id])
+                {
+                    this.Vertices_Moved[k.buffer_id][k.vertex_id] = true;
+                    a.Pos = d.multiplyWithScal(k.strength);
+                    if (l) a.Normal = c.multiplyWithScal(k.strength);
+                }
+                else
+                {
+                    a.Pos.addToThis(d.multiplyWithScal(k.strength));
+                    if (l) a.Normal.addToThis(c.multiplyWithScal(k.strength));
+                }
+            }
+        }
+        for (var g = 0; g < e.Children.length; ++g)
+        {
+            this.skinJoint(e.Children[g], e, l);
+        }
+    }
+
+    function getNamedAnimationRangeByName(e)
+    {
+        if (!e) return null;
+        
+        var b = this.NamedAnimationRanges.length;
+        var c = e.toLowerCase();
+        for (var a = 0; a < b; ++a)
+        {
+            var d = this.NamedAnimationRanges[a];
+            if (d.Name && d.Name.toLowerCase() == c) return d;
+        }
+        return null;
+    }
+
+    function addNamedAnimationRange(a)
+    {
+        this.NamedAnimationRanges.push(a);
+    }
+
+    function containsData(a)
+    {
+        return this.AllJoints.length > 0 || this.LocalBuffers.length > 0;
+    }
+};

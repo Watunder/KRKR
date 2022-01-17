@@ -1,0 +1,67 @@
+function toJSONString(tjs_str)
+{
+	var json_str;
+	var group_num = 0;
+	var group_end = [];
+
+	for(var num = 0; num < tjs_str.length; num++)
+	{
+		var str = tjs_str[num];
+		switch(str)
+		{
+			case '%':
+				if(tjs_str[num+1] == '[')
+				{
+					json_str += '{';
+					group_end[group_num] = '}';
+					group_num++;
+					num++;
+					break;
+				}
+				else
+				{
+					json_str += str;
+					break;
+				}
+			case '[':
+				json_str += '[';
+				group_end[group_num] = ']';
+				group_num++;
+				break;
+			case '=':
+				if(tjs_str[num+1] == '>')
+				{
+					json_str += ':';
+					num++;
+					break;
+				}
+				else
+				{
+					json_str += '=';
+					break;
+				}
+			case ']':
+				group_num--;
+				json_str += group_end[group_num];
+				break;
+			case 'v':
+				if( tjs_str[num+1] == 'o' &&
+					tjs_str[num+2] == 'i' &&
+					tjs_str[num+3] == 'd' ){
+
+					json_str += 'null';
+					num += 3;
+					break;
+				}
+				else
+				{
+					json_str += str;
+					break;
+				}
+			default:
+				json_str += str;
+				break;
+		}
+	}
+	return json_str;
+}

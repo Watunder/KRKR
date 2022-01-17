@@ -1,0 +1,110 @@
+CL3D.TextureManager = _TextureManager;
+
+CL3D.TextureManager.member_list =
+[
+    "Textures",
+    "TheRenderer",
+    "PathRoot",
+    "getTexture",
+    "getTextureCount",
+    "onTextureLoaded",
+    "getCountOfTexturesToLoad",
+    "getTextureFromName",
+    "addTexture",
+    "removeTexture"
+];
+
+class _TextureManager
+{
+    var Textures = new Array();
+    var TheRenderer = null;
+    var PathRoot = "";
+
+    function _TextureManager() {}
+
+    function getTexture(b, a)
+    {
+        if (b == null || b == "") return null;
+        
+        var c = this.getTextureFromName(b);
+        if (c != null) return c;
+        
+        if (a)
+        {
+            c = new CL3D.Texture();
+            c.Name = b;
+            this.addTexture(c);
+            var d = this;
+            c.Image = new Image();
+            c.Image.onload = function()
+            {
+                d.onTextureLoaded(c);
+            }
+
+            c.Image.src = c.Name;
+            return c;
+        }
+        return null;
+    };
+
+    function getTextureCount()
+    {
+        return this.Textures.length;
+    }
+
+    function onTextureLoaded(a)
+    {
+        var b = this.TheRenderer;
+        if (b == null) return;
+        
+        b.finalizeLoadedImageTexture(a);
+        a.Loaded = true;
+    }
+
+    function getCountOfTexturesToLoad()
+    {
+        var a = 0;
+        for (var c = 0; c < this.Textures.length; ++c)
+        {
+            var b = this.Textures[c];
+            if (b.Loaded == false) ++a;
+        }
+        return a;
+    }
+
+    function getTextureFromName(a)
+    {
+        for (var c = 0; c < this.Textures.length; ++c)
+        {
+            var b = this.Textures[c];
+            if (b.Name == a) return b;
+        }
+        return null;
+    }
+
+    function addTexture(a)
+    {
+        if (a != null)
+        {
+            if (this.getTextureFromName(a.Name) != null)
+            {
+                CL3D.gCCDebugOutput.print("ERROR! Cannot add the texture multiple times: " + a.Name);
+            }
+            this.Textures.push(a);
+        }
+    }
+
+    function removeTexture(a)
+    {
+        for (var c = 0; c < this.Textures.length; ++c)
+        {
+            var b = this.Textures[c];
+            if (b == a)
+            {
+                this.Textures.splice(c, 1);
+                return true;
+            }
+        }
+        return false;
+    }
+};

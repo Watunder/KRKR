@@ -1,0 +1,196 @@
+CL3D.Quaternion = _Quaternion;
+
+CL3D.Quaternion.member_list =
+[
+    "X", 
+    "Y",
+    "Z",
+    "W",
+    "clone",
+    "copyTo",
+    "multiplyWith",
+    "multiplyThisWith",
+    "addToThis",
+    "slerp",
+    "dotProduct",
+    "getMatrix",
+    "getMatrix_transposed",
+    "toEuler",
+    "setFromEuler",
+    "normalize",
+    "toString"
+];
+
+class _Quaternion
+{
+    var X = 0;
+    var Y = 0;
+    var Z = 0;
+    var W = 0;
+
+    function _Quaternion(a, d, c, b)
+    {
+        if (a !== void) this.X = a;
+        if (d !== void) this.Y = d;
+        if (c !== void) this.Z = c;
+        if (b !== void) this.W = b;
+    };
+
+    function clone()
+    {
+        var inst = new CL3D.Quaternion();
+        this.copyTo(inst);
+        return inst;
+    };
+
+    function copyTo(a)
+    {
+        a.X = this.X;
+        a.Y = this.Y;
+        a.Z = this.Z;
+        a.W = this.W;
+    };
+
+    function multiplyWith(a)
+    {
+        return _new(this.X * a, this.Y * a, this.Z * a, this.W * a);
+    };
+
+    function multiplyThisWith(a)
+    {
+        this.X = this.X * a;
+        this.Y = this.Y * a;
+        this.Z = this.Z * a;
+        this.W = this.W * a;
+    };
+
+    function addToThis(a)
+    {
+        this.X += a.X;
+        this.Y += a.Y;
+        this.Z += a.Z;
+        this.W += a.W;
+        return this;
+    };
+
+    function slerp(g, f, b)
+    {
+        var c = g.dotProduct(f);
+        if (c < 0)
+        {
+            g = g.multiplyWith(-1);
+            c *= -1;
+        }
+        var d;
+        var e;
+        if ((c + 1) > 0.05)
+        {
+            if ((1 - c) >= 0.05)
+            {
+                var a = Math.acos(c);
+                var i = 1 / Math.sin(a);
+                d = Math.sin(a * (1 - b)) * i;
+                e = Math.sin(a * b) * i;
+            }
+            else
+            {
+                d = 1 - b;
+                e = b;
+            }
+        }
+        else
+        {
+            f = new CL3D.Quaternion(-g.Y, g.X, -g.W, g.Z);
+            d = Math.sin(CL3D.PI * (0.5 - b));
+            e = Math.sin(CL3D.PI * b);
+        }
+        var h = g.multiplyWith(d).addToThis(f.multiplyWith(e));
+        this.X = h.X;
+        this.Y = h.Y;
+        this.Z = h.Z;
+        this.W = h.W;
+    };
+
+    function dotProduct(a)
+    {
+        return (this.X * a.X) + (this.Y * a.Y) + (this.Z * a.Z) + (this.W * a.W);
+    };
+
+    function getMatrix()
+    {
+        var a = new CL3D.Matrix4(false);
+        this.getMatrix_transposed(a);
+        return a;
+    };
+
+    function getMatrix_transposed(b)
+    {
+        var e = this.X;
+        var d = this.Y;
+        var c = this.Z;
+        var a = this.W;
+        b.m00 = 1 - 2 * d * d - 2 * c * c;
+        b.m04 = 2 * e * d + 2 * c * a;
+        b.m08 = 2 * e * c - 2 * d * a;
+        b.m12 = 0;
+        b.m01 = 2 * e * d - 2 * c * a;
+        b.m05 = 1 - 2 * e * e - 2 * c * c;
+        b.m09 = 2 * c * d + 2 * e * a;
+        b.m13 = 0;
+        b.m02 = 2 * e * c + 2 * d * a;
+        b.m06 = 2 * c * d - 2 * e * a;
+        b.m10 = 1 - 2 * e * e - 2 * d * d;
+        b.m14 = 0;
+        b.m03 = 0;
+        b.m07 = 0;
+        b.m11 = 0;
+        b.m15 = 1;
+        b.bIsIdentity = false;
+    };
+
+    function toEuler(a)
+    {
+        var e = this.W * this.W;
+        var d = this.X * this.X;
+        var c = this.Y * this.Y;
+        var b = this.Z * this.Z;
+        a.Z = (Math.atan2(2 * (this.X * this.Y + this.Z * this.W), (d - c - b + e)));
+        a.X = (Math.atan2(2 * (this.Y * this.Z + this.X * this.W), (-d - c + b + e)));
+        a.Y = Math.asin(CL3D.clamp(-2 * (this.X * this.Z - this.Y * this.W), -1, 1));
+    };
+
+    function setFromEuler(m, l, i)
+    {
+        var f = m * 0.5;
+        var a = Math.sin(f);
+        var g = Math.cos(f);
+        f = l * 0.5;
+        var c = Math.sin(f);
+        var j = Math.cos(f);
+        f = i * 0.5;
+        var k = Math.sin(f);
+        var e = Math.cos(f);
+        var n = j * e;
+        var h = c * e;
+        var d = j * k;
+        var b = c * k;
+        this.X = (a * n - g * b);
+        this.Y = (g * h + a * d);
+        this.Z = (g * d - a * h);
+        this.W = (g * n + a * b);
+        this.normalize();
+    };
+
+    function normalize()
+    {
+        var a = this.X * this.X + this.Y * this.Y + this.Z * this.Z + this.W * this.W;
+        if (a == 1) return;
+        a = 1 / Math.sqrt(a);
+        this.multiplyThisWith(a);
+    };
+
+    function toString()
+    {
+        return "(x: " + this.X + " y:" + this.Y + " z:" + this.Z + " w:" + this.W + ")";
+    };
+};

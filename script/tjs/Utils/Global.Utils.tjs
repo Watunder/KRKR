@@ -1,0 +1,14 @@
+global.Utils = new _Utils();
+
+global.Utils.memberEntry = function(context, object, member_list)
+{	
+	var member_num = 0;
+
+	for(; member_num < member_list.count; member_num++)
+	{
+        var member_name = member_list[member_num];
+		context[member_name] = object[member_name];
+	}
+
+	context["member_num"] = member_num;
+};

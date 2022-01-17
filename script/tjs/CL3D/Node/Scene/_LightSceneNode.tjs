@@ -1,0 +1,65 @@
+CL3D.Light = function() {
+    this.Position = new CL3D.Vect3d(0, 0, 0);
+    this.Color = new CL3D.ColorF();
+    this.Radius = 100;
+    this.Attenuation = 1 / 100;
+    this.Direction = null;
+    this.IsDirectional = false
+};
+
+CL3D.Light.prototype.clone = function() {
+    var a = new CL3D.Light();
+    a.Position = this.Position.clone();
+    a.Color = this.Color.clone();
+    a.Radius = this.Radius;
+    a.Attenuation = this.Attenuation;
+    a.IsDirectional = this.IsDirectional;
+    a.Direction = this.Direction != null ? this.Direction.clone() : null;
+    return a
+};
+
+CL3D.Light.prototype.Position = null;
+CL3D.Light.prototype.Color = null;
+CL3D.Light.prototype.Attenuation = null;
+CL3D.Light.prototype.Radius = null;
+CL3D.Light.prototype.Direction = null;
+CL3D.Light.prototype.IsDirectional = false;
+CL3D.LightSceneNode = function(a) {
+    this.LightData = new CL3D.Light();
+    this.Box = new CL3D.Box3d();
+    this.init()
+};
+
+CL3D.LightSceneNode.prototype = new CL3D.SceneNode();
+CL3D.LightSceneNode.prototype.getType = function() {
+    return "light"
+};
+
+CL3D.LightSceneNode.prototype.LightData = null;
+CL3D.LightSceneNode.prototype.createClone = function(b, a, e) {
+    var d = new CL3D.LightSceneNode();
+    this.cloneMembers(d, b, a, e);
+    d.LightData = this.LightData.clone();
+    d.Box = this.Box.clone();
+    return d
+};
+
+CL3D.LightSceneNode.prototype.OnRegisterSceneNode = function(a) {
+    if (this.Visible) {
+        a.registerNodeForRendering(this, CL3D.Scene.RENDER_MODE_LIGHTS)
+    }
+    CL3D.SceneNode.prototype.OnRegisterSceneNode.call(this, a);
+    this.LightData.Position = this.getAbsolutePosition()
+};
+
+CL3D.LightSceneNode.prototype.getBoundingBox = function() {
+    return this.Box
+};
+
+CL3D.LightSceneNode.prototype.render = function(a) {
+    if (this.LightData.IsDirectional) {
+        a.setDirectionalLight(this.LightData)
+    } else {
+        a.addDynamicLight(this.LightData)
+    }
+};

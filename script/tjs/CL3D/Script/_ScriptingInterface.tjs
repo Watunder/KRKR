@@ -1,0 +1,1461 @@
+var vector3d = function(c, b, a) {
+    if (!(c === null)) {
+        this.x = c;
+        this.y = b;
+        this.z = a
+    } else {
+        this.x = 0;
+        this.y = 0;
+        this.z = 0
+    }
+};
+
+vector3d.prototype.add = function(a) {
+    return new vector3d(this.x + a.x, this.y + a.y, this.z + a.z)
+};
+
+vector3d.prototype.substract = function(a) {
+    return new vector3d(this.x - a.x, this.y - a.y, this.z - a.z)
+};
+
+vector3d.prototype.getLength = function() {
+    return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z)
+};
+
+vector3d.prototype.normalize = function() {
+    var a = this.getLength();
+    if (a != 0) {
+        a = 1 / a;
+        this.x *= a;
+        this.y *= a;
+        this.z *= a
+    }
+};
+
+vector3d.prototype.toString = function() {
+    return "(" + this.x + ", " + this.y + ", " + this.z + ")"
+};
+
+vector3d.prototype.x = 0;
+vector3d.prototype.y = 0;
+vector3d.prototype.z = 0;
+CL3D.ScriptingInterface = function() {
+    this.nUniqueCounterID = -1;
+    this.StoredExtensionScriptActionHandlers = new Array();
+    this.IsInDrawCallback = false;
+    this.CurrentlyActiveScene = null;
+    this.CurrentlyRunningExtensionScriptAnimator = null;
+    this.TheTextureManager = null;
+    this.TheRenderer = null;
+    this.Engine = null;
+    this.ccbRegisteredFunctionArray = new Array();
+    this.ccbRegisteredHTTPCallbackArray = new Array();
+    this.LastHTTPRequestId = 0;
+    this.ShaderCallBackSet = false;
+    this.OriginalShaderCallBack = null;
+    this.ShaderCallbacks = new Object();
+    this.CurrentShaderMaterialType = 0
+};
+
+CL3D.gScriptingInterface = null;
+CL3D.ScriptingInterface.getScriptingInterface = function() {
+    if (CL3D.gScriptingInterface == null) {
+        CL3D.gScriptingInterface = new CL3D.ScriptingInterface()
+    }
+    return CL3D.gScriptingInterface
+};
+
+CL3D.ScriptingInterface.getScriptingInterfaceReadOnly = function() {
+    return CL3D.gScriptingInterface
+};
+
+CL3D.ScriptingInterface.prototype.setTextureManager = function(a) {
+    this.TheTextureManager = a
+};
+
+CL3D.ScriptingInterface.prototype.setEngine = function(a) {
+    this.Engine = a
+};
+
+CL3D.ScriptingInterface.prototype.needsRedraw = function() {
+    return this.ccbRegisteredFunctionArray.length != 0
+};
+
+CL3D.ScriptingInterface.prototype.setCurrentlyRunningExtensionScriptAnimator = function(a) {
+    this.CurrentlyRunningExtensionScriptAnimator = a
+};
+
+CL3D.ScriptingInterface.prototype.setActiveScene = function(a) {
+    this.CurrentlyActiveScene = a
+};
+
+CL3D.ScriptingInterface.prototype.executeCode = function(code) {
+    try {
+        eval(code)
+    } catch (err) {
+        CL3D.gCCDebugOutput.jsConsolePrint(err)
+    }
+};
+
+CL3D.ScriptingInterface.prototype.getUniqueCounterID = function() {
+    ++this.nUniqueCounterID;
+    return this.nUniqueCounterID
+};
+
+CL3D.ScriptingInterface.prototype.registerExtensionScriptActionHandler = function(d) {
+    for (var c = 0; c < this.StoredExtensionScriptActionHandlers.length; ++c) {
+        var b = this.StoredExtensionScriptActionHandlers[c];
+        if (b === d) {
+            return c
+        }
+    }
+    this.StoredExtensionScriptActionHandlers.push(d);
+    return this.StoredExtensionScriptActionHandlers.length - 1
+};
+
+CL3D.ScriptingInterface.prototype.runDrawCallbacks = function(b) {
+    this.IsInDrawCallback = true;
+    if (this.ccbRegisteredFunctionArray.length != null) {
+        this.TheRenderer = b;
+        for (var a = 0; a < this.ccbRegisteredFunctionArray.length; ++a) {
+            this.ccbRegisteredFunctionArray[a]()
+        }
+        this.TheRenderer = null
+    }
+    this.IsInDrawCallback = false
+};
+
+CL3D.ScriptingInterface.prototype.setSceneNodePropertyFromOverlay = function(e, d, b, c) {
+    switch (d) {
+        case "Position Mode":
+            e.SizeModeIsAbsolute = (b == "absolute (pixels)");
+            break;
+        case "Pos X (percent)":
+            e.PosRelativeX = b / 100;
+            break;
+        case "Pos Y (percent)":
+            e.PosRelativeY = b / 100;
+            break;
+        case "Width (percent)":
+            e.SizeAbsoluteWidth = b;
+            break;
+        case "Height (percent)":
+            e.SizeAbsoluteHeight = b;
+            break;
+        case "Pos X (pixels)":
+            e.PosAbsoluteX = b;
+            break;
+        case "Pos Y (pixels)":
+            e.PosAbsoluteY = b;
+            break;
+        case "Width (pixels)":
+            e.SizeRelativeWidth = b / 100;
+            break;
+        case "Height (pixels)":
+            e.SizeRelativeHeight = b / 100;
+            break;
+        case "Alpha":
+            e.BackGroundColor = ((b & 255) << 24) | (e.BackGroundColor & 16777215);
+            break;
+        case "Image":
+            var a = this.TheTextureManager.getTextureFromName(b);
+            e.Texture = a;
+            break;
+        case "Background Color":
+            e.BackGroundColor = c;
+            break;
+        case "Draw Text":
+            e.DrawText = b ? true : false;
+            break;
+        case "TextColor":
+            e.TextColor = c;
+            break;
+        case "Text":
+            e.Text = b;
+            break
+    }
+};
+
+CL3D.ScriptingInterface.prototype.getSceneNodePropertyFromOverlay = function(b, a) {
+    switch (a) {
+        case "Position Mode":
+            return b.SizeModeIsAbsolute;
+        case "Pos X (percent)":
+            return b.PosRelativeX * 100;
+        case "Pos Y (percent)":
+            return b.PosRelativeY * 100;
+        case "Width (percent)":
+            return b.SizeAbsoluteWidth;
+        case "Height (percent)":
+            return b.SizeAbsoluteHeight;
+        case "Pos X (pixels)":
+            return b.PosAbsoluteX;
+        case "Pos Y (pixels)":
+            return b.PosAbsoluteY;
+        case "Width (pixels)":
+            return b.SizeRelativeWidth * 100;
+        case "Height (pixels)":
+            return b.SizeRelativeHeight * 100;
+        case "Alpha":
+            return CL3D.getAlpha(b.BackGroundColor);
+        case "Image":
+            return b.Texture ? b.Texture.Name : null;
+        case "Background Color":
+            return b.BackGroundColor;
+        case "Draw Text":
+            return b.DrawText;
+        case "TextColor":
+            return b.TextColor;
+        case "Text":
+            return b.Text
+    }
+    return null
+};
+
+CL3D.AnimatorExtensionScript = function(a) {
+    this.JsClassName = null;
+    this.Properties = new Array();
+    this.bAcceptsMouseEvents = false;
+    this.bAcceptsKeyboardEvents = false;
+    this.ScriptIndex = -1;
+    this.bIsAttachedToCamera = false;
+    this.SMGr = a
+};
+
+CL3D.AnimatorExtensionScript.prototype = new CL3D.Animator();
+CL3D.AnimatorExtensionScript.prototype.setAcceptsEvents = function(c, a) {
+    this.bAcceptsMouseEvents = c;
+    this.bAcceptsKeyboardEvents = a;
+    if (!this.bIsAttachedToCamera && this.SMGr) {
+        var b = CL3D.ScriptingInterface.getScriptingInterface().Engine;
+        if (a) {
+            b.registerAnimatorForKeyUp(this);
+            b.registerAnimatorForKeyDown(this)
+        }
+        this.SMGr.registerSceneNodeAnimatorForEvents(this)
+    }
+};
+
+CL3D.AnimatorExtensionScript.prototype.getType = function() {
+    return "extensionscript"
+};
+
+CL3D.AnimatorExtensionScript.prototype.createClone = function(d, h, e, g) {
+    var b = new CL3D.AnimatorExtensionScript(h);
+    b.JsClassName = this.JsClassName;
+    for (var c = 0; c < this.Properties.length; ++c) {
+        var f = this.Properties[c];
+        if (f != null) {
+            b.Properties.push(f.createClone(e, g))
+        } else {
+            b.Properties.push(null)
+        }
+    }
+    return b
+};
+
+CL3D.AnimatorExtensionScript.prototype.animateNode = function(d, c) {
+    if (d == null) {
+        return false
+    }
+    if (this.JsClassName == null || this.JsClassName.length == 0) {
+        return false
+    }
+    var a = CL3D.ScriptingInterface.getScriptingInterface();
+    a.setCurrentlyRunningExtensionScriptAnimator(this);
+    if (this.ScriptIndex == -1) {
+        this.initScript(d, a)
+    }
+    if (this.ScriptIndex != -1) {
+        try {
+            _ccbScriptCache[this.ScriptIndex]["onAnimate"](d, c)
+        } catch (b) {
+            CL3D.gCCDebugOutput.jsConsolePrint(this.JsClassName + ": " + b)
+        }
+    }
+    a.setCurrentlyRunningExtensionScriptAnimator(null);
+    return true
+};
+
+CL3D.AnimatorExtensionScript.prototype.initScript = function(f, b) {
+    var e = "";
+    this.ScriptIndex = b.getUniqueCounterID();
+    e += "if (typeof _ccbScriptCache == 'undefined') _ccbScriptCache = new Array(); ";
+    e += "_ccbScriptCache[";
+    e += this.ScriptIndex;
+    e += "] = new ";
+    e += this.JsClassName;
+    e += "();";
+    b.executeCode(e);
+    var c = "_ccbScriptCache[";
+    c += this.ScriptIndex;
+    c += "].";
+    e = "try {";
+    e += CL3D.ExtensionScriptProperty.generateInitJavaScriptCode(c, this.Properties);
+    e += "} catch(e) { }";
+    b.executeCode(e);
+    var a = false;
+    var d = null;
+    if (f.getType() == "camera") {
+        d = f;
+        a = true
+    }
+    this.bIsAttachedToCamera = a;
+    e = "try { ccbRegisterBehaviorEventReceiver(typeof ";
+    e += c;
+    e += "onMouseEvent != 'undefined', typeof ";
+    e += c;
+    e += "onKeyEvent != 'undefined'); } catch(e) { }";
+    b.executeCode(e)
+};
+
+CL3D.AnimatorExtensionScript.prototype.sendMouseEvent = function(a, b) {
+    if (this.bAcceptsMouseEvents) {
+        _ccbScriptCache[this.ScriptIndex]["onMouseEvent"](a, b)
+    }
+};
+
+CL3D.AnimatorExtensionScript.prototype.sendKeyEvent = function(a, b) {
+    if (this.bAcceptsKeyboardEvents) {
+        _ccbScriptCache[this.ScriptIndex]["onKeyEvent"](a, b)
+    }
+};
+
+CL3D.AnimatorExtensionScript.prototype.onMouseUp = function(b) {
+    var a = false;
+    if (b && b.button == 2) {
+        a = true
+    }
+    this.sendMouseEvent(a ? 4 : 2, 0)
+};
+
+CL3D.AnimatorExtensionScript.prototype.onMouseWheel = function(a) {
+    this.sendMouseEvent(1, a)
+};
+
+CL3D.AnimatorExtensionScript.prototype.onMouseDown = function(b) {
+    var a = false;
+    if (b && b.button == 2) {
+        a = true
+    }
+    this.sendMouseEvent(a ? 5 : 3, 0)
+};
+
+CL3D.AnimatorExtensionScript.prototype.onMouseMove = function(a) {
+    this.sendMouseEvent(0, 0)
+};
+
+CL3D.AnimatorExtensionScript.prototype.onKeyDown = function(a) {
+    this.sendKeyEvent(a.keyCode, true)
+};
+
+CL3D.AnimatorExtensionScript.prototype.onKeyUp = function(a) {
+    this.sendKeyEvent(a.keyCode, false)
+};
+
+CL3D.ExtensionScriptProperty = function() {
+    this.Type = -1;
+    this.Name = null;
+    this.StringValue = null;
+    this.VectorValue = null;
+    this.FloatValue = 0;
+    this.IntValue = 0;
+    this.ActionHandlerValue = null;
+    this.TextureValue = null
+};
+
+CL3D.ExtensionScriptProperty.prototype.createClone = function(a, d) {
+    var b = new CL3D.ExtensionScriptProperty();
+    b.Type = this.Type;
+    b.Name = this.Name;
+    b.StringValue = this.StringValue;
+    b.VectorValue = this.VectorValue ? this.VectorValue.clone() : null;
+    b.FloatValue = this.FloatValue;
+    b.IntValue = this.IntValue;
+    if (this.ActionHandlerValue) {
+        b.ActionHandlerValue = this.ActionHandlerValue.createClone(a, d)
+    }
+    b.TextureValue = this.TextureValue;
+    return b
+};
+
+CL3D.ExtensionScriptProperty.stringReplace = function(b, c, a) {
+    return b.split(c).join(a)
+};
+
+CL3D.ExtensionScriptProperty.generateInitJavaScriptCode = function(d, c) {
+    var e = "";
+    for (var b = 0; b < c.length; ++b) {
+        var g = c[b];
+        if (g == null) {
+            continue
+        }
+        e += d;
+        e += g.Name;
+        e += " = ";
+        switch (g.Type) {
+            case 1:
+                e += g.FloatValue;
+                e += "; ";
+                break;
+            case 2:
+                e += '"';
+                var a = CL3D.ExtensionScriptProperty.stringReplace(g.StringValue, '"', '\\"');
+                e += a;
+                e += '"; ';
+                break;
+            case 3:
+                e += g.IntValue ? "true" : "false";
+                e += "; ";
+                break;
+            case 6:
+                e += "new vector3d(";
+                e += g.VectorValue.X;
+                e += ", ";
+                e += g.VectorValue.Y;
+                e += ", ";
+                e += g.VectorValue.Z;
+                e += "); ";
+                break;
+            case 7:
+                e += '"';
+                e += g.TextureValue ? g.TextureValue.Name : "";
+                e += '"; ';
+                break;
+            case 8:
+                e += "ccbGetSceneNodeFromId(";
+                e += g.IntValue;
+                e += "); ";
+                break;
+            case 9:
+                var f = CL3D.ScriptingInterface.getScriptingInterface().registerExtensionScriptActionHandler(g.ActionHandlerValue);
+                e += f;
+                e += "; ";
+                break;
+            case 0:
+            case 5:
+            case 4:
+            default:
+                e += g.IntValue;
+                e += "; ";
+                break
+        }
+    }
+    return e
+};
+
+CL3D.Action.ActionExtensionScript = function() {
+    this.Type = "ExtensionScript";
+    this.Properties = new Array();
+    this.JsClassName = null
+};
+
+CL3D.Action.ActionExtensionScript.prototype.createClone = function(d, f) {
+    var b = new CL3D.Action.ActionExtensionScript();
+    b.JsClassName = this.JsClassName;
+    for (var c = 0; c < this.Properties.length; ++c) {
+        var e = this.Properties[c];
+        if (e != null) {
+            b.Properties.push(e.createClone(d, f))
+        } else {
+            b.Properties.push(null)
+        }
+    }
+    return b
+};
+
+CL3D.Action.ActionExtensionScript.prototype.execute = function(b, a) {
+    if (this.JsClassName == null || this.JsClassName.length == 0 || b == null) {
+        return
+    }
+    var c = CL3D.ScriptingInterface.getScriptingInterface();
+    var e = "";
+    e = "_ccbScriptTmp = new ";
+    e += this.JsClassName;
+    e += "();";
+    c.executeCode(e);
+    var d = "_ccbScriptTmp.";
+    e = "try { ";
+    e += CL3D.ExtensionScriptProperty.generateInitJavaScriptCode(d, this.Properties);
+    e += "} catch(e) { }";
+    c.executeCode(e);
+    e = "try { _ccbScriptTmp.execute(ccbGetSceneNodeFromId(";
+    e += b.Id;
+    e += ")); } catch(e) { }";
+    c.executeCode(e)
+};
+
+function ccbGetSceneNodeFromId(b) {
+    var a = CL3D.gScriptingInterface.CurrentlyActiveScene;
+    if (a == null) {
+        return null
+    }
+    return a.getSceneNodeFromId(b)
+}
+
+function ccbCloneSceneNode(e) {
+    var f = CL3D.gScriptingInterface.CurrentlyActiveScene;
+    if (e == null) {
+        return null
+    }
+    var g = e.Id;
+    var c = f.getUnusedSceneNodeId();
+    var b = e.createClone(e.Parent, g, c);
+    if (b != null) {
+        b.Id = c;
+        f.replaceAllReferencedNodes(e, b)
+    }
+    var a = e.Selector;
+    if (a && f) {
+        var d = a.createClone(b);
+        if (d) {
+            b.Selector = d;
+            if (f.getCollisionGeometry()) {
+                f.getCollisionGeometry().addSelector(d)
+            }
+        }
+    }
+    return b
+}
+
+function ccbGetActiveCamera() {
+    var a = CL3D.gScriptingInterface.CurrentlyActiveScene;
+    if (a == null) {
+        return null
+    }
+    return a.getActiveCamera()
+}
+
+function ccbSetActiveCamera(a) {
+    var b = CL3D.gScriptingInterface.CurrentlyActiveScene;
+    if (b == null) {
+        return
+    }
+    if (a != null && a.getType() == "camera") {
+        b.setActiveCamera(a)
+    }
+}
+
+function ccbGetChildSceneNode(b, a) {
+    if (b == null) {
+        return -1
+    }
+    if (a < 0 || a >= b.Children.length) {
+        return null
+    }
+    return b.Children[a]
+}
+
+function ccbGetRootSceneNode() {
+    var a = CL3D.gScriptingInterface.CurrentlyActiveScene;
+    if (a == null) {
+        return null
+    }
+    return a.getRootSceneNode()
+}
+
+function ccbGetSceneNodeChildCount(a) {
+    if (a == null) {
+        return 0
+    }
+    return a.Children.length
+}
+
+function ccbGetSceneNodeFromName(b) {
+    var a = CL3D.gScriptingInterface.CurrentlyActiveScene;
+    if (a == null) {
+        return null
+    }
+    return a.getSceneNodeFromName(b)
+}
+
+function ccbRemoveSceneNode(a) {
+    var b = CL3D.gScriptingInterface.CurrentlyActiveScene;
+    if (b == null) {
+        return
+    }
+    b.addToDeletionQueue(a, 0)
+}
+
+function ccbSetSceneNodeParent(b, a) {
+    if (b && a) {
+        a.addChild(b)
+    }
+}
+
+function ccbGetSceneNodeMaterialCount(a) {
+    if (a == null) {
+        return 0
+    }
+    return a.getMaterialCount()
+}
+
+function ccbGetSceneNodeMaterialProperty(c, b, d) {
+    if (c == null) {
+        return null
+    }
+    if (b < 0 || b >= c.getMaterialCount()) {
+        return null
+    }
+    var a = c.getMaterial(b);
+    if (a == null) {
+        return null
+    }
+    if (d == "Type") {
+        switch (a.Type) {
+            case 0:
+                return "solid";
+            case 2:
+                return "lightmap";
+            case 3:
+                return "lightmap_add";
+            case 4:
+                return "lightmap_m2";
+            case 5:
+                return "lightmap_m4";
+            case 11:
+                return "reflection_2layer";
+            case 12:
+                return "trans_add";
+            case 13:
+                return "trans_alphach";
+            case 16:
+                return "trans_reflection_2layer"
+        }
+    } else {
+        if (d == "Texture1") {
+            return (a.Tex1 == null) ? "" : a.Tex1.Name
+        } else {
+            if (d == "Texture2") {
+                return (a.Tex2 == null) ? "" : a.Tex2.Name
+            } else {
+                if (d == "Lighting") {
+                    return a.Lighting
+                } else {
+                    if (d == "Backfaceculling") {
+                        return a.Backfaceculling
+                    }
+                }
+            }
+        }
+    }
+    return null
+}
+
+function ccbCleanMemory() {}
+
+function ccbSetSceneNodeMaterialProperty(a, f, d, g, e, c) {
+    if (a == null) {
+        return
+    }
+    if (f < 0 || f >= a.getMaterialCount()) {
+        return
+    }
+    var m = a.getMaterial(f);
+    if (m == null) {
+        return
+    }
+    var j = g;
+    var l = (typeof g == "string") ? g : null;
+    var k = null;
+    var h = CL3D.ScriptingInterface.getScriptingInterface();
+    if (d == "Type") {
+        if (l) {
+            switch (l) {
+                case "solid":
+                    m.Type = 0;
+                    break;
+                case "lightmap":
+                case "lightmap_add":
+                case "lightmap_m2":
+                case "lightmap_m4":
+                    m.Type = 2;
+                    break;
+                case "reflection_2layer":
+                    m.Type = 11;
+                    break;
+                case "trans_add":
+                    m.Type = 12;
+                    break;
+                case "trans_alphach":
+                    m.Type = 13;
+                    break;
+                case "trans_reflection_2layer":
+                    m.Type = 16;
+                    break
+            }
+        } else {
+            var b = parseInt(g);
+            if (b != NaN) {
+                m.Type = b
+            }
+        }
+    } else {
+        if (d == "Texture1") {
+            if (l != null && h.TheTextureManager != null) {
+                k = h.TheTextureManager.getTextureFromName(l);
+                if (k != null) {
+                    m.Tex1 = k
+                }
+            }
+        } else {
+            if (d == "Texture2") {
+                if (l != null && h.TheTextureManager != null) {
+                    k = h.TheTextureManager.getTextureFromName(l);
+                    if (k != null) {
+                        m.Tex2 = k
+                    }
+                }
+            } else {
+                if (d == "Lighting") {
+                    m.Lighting = j
+                } else {
+                    if (d == "Backfaceculling") {
+                        m.Backfaceculling = j
+                    }
+                }
+            }
+        }
+    }
+}
+
+function ccbSetSceneNodeProperty(d, e, h, g, f) {
+    if (d == null) {
+        return
+    }
+    var m = h;
+    var n = 0;
+    var l = 0;
+    var k = 0;
+    var b = 0;
+    if (h != null) {
+        b = h
+    }
+    if (g == null && m != null && typeof m.x != "undefined") {
+        n = m.x;
+        l = m.y;
+        k = m.z
+    }
+    if (g != null && f != null) {
+        n = h;
+        l = g;
+        k = f;
+        b = CL3D.createColor(255, Math.floor(h), Math.floor(g), Math.floor(f))
+    }
+    var a = null;
+    var c = null;
+    var o = null;
+    var i = null;
+    var j = d.getType();
+    if (j == "camera") {
+        a = d
+    } else {
+        if (j == "animatedmesh") {
+            c = d
+        } else {
+            if (j == "light") {
+                o = d
+            } else {
+                if (j == "2doverlay") {
+                    i = d
+                }
+            }
+        }
+    }
+    if (e == "Visible") {
+        d.Visible = m
+    } else {
+        if (e == "Position") {
+            d.Pos.X = n;
+            d.Pos.Y = l;
+            d.Pos.Z = k
+        } else {
+            if (e == "Rotation") {
+                d.Rot.X = n;
+                d.Rot.Y = l;
+                d.Rot.Z = k
+            } else {
+                if (e == "Scale") {
+                    d.Scale.X = n;
+                    d.Scale.Y = l;
+                    d.Scale.Z = k
+                } else {
+                    if (e == "Target") {
+                        if (a != null) {
+                            a.setTarget(new CL3D.Vect3d(n, l, k))
+                        }
+                    } else {
+                        if (e == "UpVector") {
+                            if (a != null) {
+                                a.UpVector = new CL3D.Vect3d(n, l, k)
+                            }
+                        } else {
+                            if (e == "FieldOfView_Degrees") {
+                                if (a != null) {
+                                    a.setFov(CL3D.degToRad(m))
+                                }
+                            } else {
+                                if (e == "AspectRatio") {
+                                    if (a != null) {
+                                        a.setAspectRatio(m)
+                                    }
+                                } else {
+                                    if (e == "Animation") {
+                                        if (c != null) {
+                                            c.setAnimationByEditorName(m, c.Looping)
+                                        }
+                                    } else {
+                                        if (e == "Looping") {
+                                            if (c != null) {
+                                                c.setLoopMode(m)
+                                            }
+                                        } else {
+                                            if (e == "FramesPerSecond") {
+                                                if (c != null) {
+                                                    c.setAnimationSpeed(m * 0.001)
+                                                }
+                                            } else {
+                                                if (e == "AnimationBlending") {
+                                                    if (c != null) {
+                                                        c.AnimationBlendingEnabled = m
+                                                    }
+                                                } else {
+                                                    if (e == "BlendTimeMs") {
+                                                        if (c != null) {
+                                                            c.BlendTimeMs = m
+                                                        }
+                                                    } else {
+                                                        if (e == "Radius") {
+                                                            if (o != null) {
+                                                                o.LightData.Radius = m
+                                                            }
+                                                        } else {
+                                                            if (e == "Color") {
+                                                                if (o != null) {
+                                                                    o.LightData.Color = CL3D.createColorF(b)
+                                                                }
+                                                            } else {
+                                                                if (e == "Direction") {
+                                                                    if (o != null) {
+                                                                        o.LightData.Direction = new CL3D.Vect3d(n, l, k);
+                                                                        o.LightData.Direction.normalize()
+                                                                    }
+                                                                } else {
+                                                                    if (e == "FogColor") {
+                                                                        CL3D.gScriptingInterface.CurrentlyActiveScene.FogColor = b
+                                                                    } else {
+                                                                        if (e == "Realtime Shadows" && d === ccbGetRootSceneNode()) {
+                                                                            CL3D.gScriptingInterface.CurrentlyActiveScene.ShadowMappingEnabled = h == true
+                                                                        } else {
+                                                                            if (e == "BackgroundColor" && d === ccbGetRootSceneNode()) {
+                                                                                CL3D.gScriptingInterface.CurrentlyActiveScene.BackgroundColor = b
+                                                                            } else {
+                                                                                if (e == "AmbientLight") {
+                                                                                    CL3D.gScriptingInterface.CurrentlyActiveScene.AmbientLight = CL3D.createColorF(b)
+                                                                                } else {
+                                                                                    if (e == "Bloom") {
+                                                                                        CL3D.gScriptingInterface.CurrentlyActiveScene.PostEffectData[CL3D.Scene.EPOSTEFFECT_BLOOM].Active = h == true
+                                                                                    } else {
+                                                                                        if (e == "Black and White") {
+                                                                                            CL3D.gScriptingInterface.CurrentlyActiveScene.PostEffectData[CL3D.Scene.EPOSTEFFECT_BLACK_AND_WHITE].Active = h == true
+                                                                                        } else {
+                                                                                            if (e == "Invert") {
+                                                                                                CL3D.gScriptingInterface.CurrentlyActiveScene.PostEffectData[CL3D.Scene.EPOSTEFFECT_INVERT].Active = h == true
+                                                                                            } else {
+                                                                                                if (e == "Blur") {
+                                                                                                    CL3D.gScriptingInterface.CurrentlyActiveScene.PostEffectData[CL3D.Scene.EPOSTEFFECT_BLUR].Active = h == true
+                                                                                                } else {
+                                                                                                    if (e == "Colorize") {
+                                                                                                        CL3D.gScriptingInterface.CurrentlyActiveScene.PostEffectData[CL3D.Scene.EPOSTEFFECT_COLORIZE].Active = h == true
+                                                                                                    } else {
+                                                                                                        if (e == "Vignette") {
+                                                                                                            CL3D.gScriptingInterface.CurrentlyActiveScene.PostEffectData[CL3D.Scene.EPOSTEFFECT_VIGNETTE].Active = h == true
+                                                                                                        } else {
+                                                                                                            if (e == "Bloom_BlurIterations") {
+                                                                                                                CL3D.gScriptingInterface.CurrentlyActiveScene.PE_bloomBlurIterations = m >> 0
+                                                                                                            } else {
+                                                                                                                if (e == "Bloom_Treshold") {
+                                                                                                                    CL3D.gScriptingInterface.CurrentlyActiveScene.PE_bloomTreshold = m
+                                                                                                                } else {
+                                                                                                                    if (e == "Blur_Iterations") {
+                                                                                                                        CL3D.gScriptingInterface.CurrentlyActiveScene.PE_blurIterations = m >> 0
+                                                                                                                    } else {
+                                                                                                                        if (e == "Colorize_Color") {
+                                                                                                                            CL3D.gScriptingInterface.CurrentlyActiveScene.PE_colorizeColor = m
+                                                                                                                        } else {
+                                                                                                                            if (e == "Vignette_Intensity") {
+                                                                                                                                CL3D.gScriptingInterface.CurrentlyActiveScene.PE_vignetteIntensity = m >> 0
+                                                                                                                            } else {
+                                                                                                                                if (e == "Vignette_RadiusA") {
+                                                                                                                                    CL3D.gScriptingInterface.CurrentlyActiveScene.PE_vignetteRadiusA = m >> 0
+                                                                                                                                } else {
+                                                                                                                                    if (e == "Vignette_RadiusB") {
+                                                                                                                                        CL3D.gScriptingInterface.CurrentlyActiveScene.PE_vignetteRadiusB = m >> 0
+                                                                                                                                    } else {
+                                                                                                                                        if (e == "Name") {
+                                                                                                                                            d.Name = m
+                                                                                                                                        } else {
+                                                                                                                                            if (i != null) {
+                                                                                                                                                CL3D.ScriptingInterface.getScriptingInterface().setSceneNodePropertyFromOverlay(i, e, h, b)
+                                                                                                                                            }
+                                                                                                                                        }
+                                                                                                                                    }
+                                                                                                                                }
+                                                                                                                            }
+                                                                                                                        }
+                                                                                                                    }
+                                                                                                                }
+                                                                                                            }
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+function ccbGetSceneNodeProperty(d, f) {
+    if (d == null) {
+        return null
+    }
+    var e = null;
+    var c = null;
+    var h = null;
+    var g = null;
+    var b = d.getType();
+    if (b == "camera") {
+        e = d
+    } else {
+        if (b == "animatedmesh") {
+            c = d
+        } else {
+            if (b == "light") {
+                h = d
+            } else {
+                if (b == "2doverlay") {
+                    g = d
+                }
+            }
+        }
+    }
+    if (f == "Visible") {
+        return d.Visible
+    } else {
+        if (f == "Position") {
+            return new vector3d(d.Pos.X, d.Pos.Y, d.Pos.Z)
+        } else {
+            if (f == "PositionAbs") {
+                var a = d.getAbsolutePosition();
+                return new vector3d(a.X, a.Y, a.Z)
+            } else {
+                if (f == "Rotation") {
+                    return new vector3d(d.Rot.X, d.Rot.Y, d.Rot.Z)
+                } else {
+                    if (f == "Scale") {
+                        return new vector3d(d.Scale.X, d.Scale.Y, d.Scale.Z)
+                    } else {
+                        if (f == "Target") {
+                            if (e != null) {
+                                return new vector3d(e.Target.X, e.Target.Y, e.Target.Z)
+                            }
+                        } else {
+                            if (f == "UpVector") {
+                                if (e != null) {
+                                    return new vector3d(e.UpVector.X, e.UpVector.Y, e.UpVector.Z)
+                                }
+                            } else {
+                                if (f == "FieldOfView_Degrees") {
+                                    if (e != null) {
+                                        return CL3D.radToDeg(e.Fovy)
+                                    }
+                                } else {
+                                    if (f == "AspectRatio") {
+                                        if (e != null) {
+                                            return e.Aspect
+                                        }
+                                    } else {
+                                        if (f == "Animation") {
+                                            return ""
+                                        } else {
+                                            if (f == "Looping") {
+                                                if (c != null) {
+                                                    return c.Looping
+                                                }
+                                            } else {
+                                                if (f == "FramesPerSecond") {
+                                                    if (c != null) {
+                                                        return c.FramesPerSecond * 1000
+                                                    }
+                                                } else {
+                                                    if (f == "AnimationBlending") {
+                                                        if (c != null) {
+                                                            return c.AnimationBlendingEnabled
+                                                        }
+                                                    } else {
+                                                        if (f == "BlendTimeMs") {
+                                                            if (c != null) {
+                                                                return c.BlendTimeMs
+                                                            }
+                                                        } else {
+                                                            if (f == "Radius") {
+                                                                if (h != null) {
+                                                                    return h.LightData.Radius
+                                                                }
+                                                            } else {
+                                                                if (f == "Color") {
+                                                                    if (h != null) {
+                                                                        return CL3D.createColor(255, h.LightData.Color.R * 255, h.LightData.Color.G * 255, h.LightData.Color.B * 255)
+                                                                    }
+                                                                } else {
+                                                                    if (f == "Direction") {
+                                                                        if (h != null) {
+                                                                            return h.LightData.Direction
+                                                                        }
+                                                                    } else {
+                                                                        if (f == "Name") {
+                                                                            return d.Name
+                                                                        } else {
+                                                                            if (f == "Type") {
+                                                                                return d.getType()
+                                                                            } else {
+                                                                                if (f == "FogColor") {
+                                                                                    return CL3D.gScriptingInterface.CurrentlyActiveScene.FogColor
+                                                                                } else {
+                                                                                    if (f == "Realtime Shadows" && d === ccbGetRootSceneNode()) {
+                                                                                        return CL3D.gScriptingInterface.CurrentlyActiveScene.ShadowMappingEnabled
+                                                                                    } else {
+                                                                                        if (f == "BackgroundColor" && d === ccbGetRootSceneNode()) {
+                                                                                            return CL3D.gScriptingInterface.CurrentlyActiveScene.BackgroundColor
+                                                                                        } else {
+                                                                                            if (g != null) {
+                                                                                                return CL3D.ScriptingInterface.getScriptingInterface().getSceneNodePropertyFromOverlay(g, f)
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return null
+}
+
+function ccbSetSceneNodePositionWithoutCollision(e, c, g, f) {
+    if (e == null) {
+        return
+    }
+    e.Pos.X = c;
+    e.Pos.Y = g;
+    e.Pos.Z = f;
+    for (var b = 0; b < e.Animators.length; ++b) {
+        var d = e.Animators[b];
+        if (d != null && d.getType() == "collisionresponse") {
+            d.reset()
+        }
+    }
+}
+
+function ccbRegisterOnFrameEvent(b) {
+    var a = CL3D.ScriptingInterface.getScriptingInterface();
+    a.ccbRegisteredFunctionArray.push(b)
+}
+
+function ccbUnregisterOnFrameEvent(c) {
+    var a = CL3D.ScriptingInterface.getScriptingInterface();
+    var b = a.ccbRegisteredFunctionArray.indexOf(c);
+    if (b == -1) {
+        return
+    }
+    a.ccbRegisteredFunctionArray.splice(b, 1)
+}
+
+function ccbDrawColoredRectangle(g, a, f, b, d) {
+    var e = CL3D.ScriptingInterface.getScriptingInterface();
+    if (!e.IsInDrawCallback || e.TheRenderer == null) {
+        return
+    }
+    e.TheRenderer.draw2DRectangle(a, f, b - a, d - f, g, true)
+}
+
+function ccbDrawTextureRectangle(e, a, g, b, c) {
+    var d = CL3D.ScriptingInterface.getScriptingInterface();
+    if (!d.IsInDrawCallback || d.TheRenderer == null) {
+        return
+    }
+    d.TheRenderer.draw2DRectangle(a, g, b - a, c - g, 4278190080, true)
+}
+
+function ccbDrawTextureRectangleWithAlpha(e, a, g, b, c) {
+    var d = CL3D.ScriptingInterface.getScriptingInterface();
+    if (!d.IsInDrawCallback || d.TheRenderer == null) {
+        return
+    }
+    d.TheRenderer.draw2DRectangle(a, g, b - a, c - g, 4278190080, true)
+}
+
+function ccbGet3DPosFrom2DPos(a, d) {
+    var c = CL3D.ScriptingInterface.getScriptingInterface().Engine;
+    var b = c.get3DPositionFrom2DPosition(a, d);
+    if (b != null) {
+        return new vector3d(b.X, b.Y, b.Z)
+    }
+    return null
+}
+
+function ccbGet2DPosFrom3DPos(a, e, d) {
+    var c = CL3D.ScriptingInterface.getScriptingInterface().Engine;
+    var b = c.get2DPositionFrom3DPosition(new CL3D.Vect3d(a, e, d));
+    return new vector3d(b.X, b.Y, 0)
+}
+
+function ccbGetCollisionPointOfWorldWithLine(e, c, b, k, j, i) {
+    var h = new CL3D.Line3d();
+    h.Start = new CL3D.Vect3d(e, c, b);
+    h.End = new CL3D.Vect3d(k, j, i);
+    var d = CL3D.gScriptingInterface.CurrentlyActiveScene;
+    var f = CL3D.AnimatorOnClick.prototype.static_getDistanceToNearestCollisionPointWithWorld(d, h.Start, h.End, d.CollisionWorld, true);
+    if (f < 999999999) {
+        var a = h.getVector();
+        a.setLength(f);
+        var g = h.Start.add(a);
+        return new vector3d(g.X, g.Y, g.Z)
+    }
+    return null
+}
+
+function ccbDoesLineCollideWithBoundingBoxOfSceneNode(a, e, d, c, i, h, g) {
+    if (a == null) {
+        return false
+    }
+    if (a.AbsoluteTransformation == null) {
+        return false
+    }
+    var f = new CL3D.Vect3d(e, d, c);
+    var b = new CL3D.Vect3d(i, h, g);
+    return a.getTransformedBoundingBox().intersectsWithLine(f, b)
+}
+
+function ccbEndProgram() {
+    window.close()
+}
+
+function ccbSetPhysicsVelocity(b, a, d, c) {}
+
+function ccbUpdatePhysicsGeometry(b, a, d, c) {}
+
+function ccbLoadTexture(b) {
+    var c = CL3D.ScriptingInterface.getScriptingInterface();
+    var a = c.TheTextureManager.getTexture(b, true);
+    if (a != null) {
+        return a.Name
+    }
+    return null
+}
+
+function ccbGetMousePosX() {
+    var a = CL3D.ScriptingInterface.getScriptingInterface().Engine;
+    if (a) {
+        return a.getMouseX()
+    }
+    return 0
+}
+
+function ccbGetMousePosY() {
+    var a = CL3D.ScriptingInterface.getScriptingInterface().Engine;
+    if (a) {
+        return a.getMouseY()
+    }
+    return 0
+}
+
+function ccbGetScreenWidth() {
+    var a = CL3D.ScriptingInterface.getScriptingInterface().Engine;
+    if (a != null && a.getRenderer()) {
+        return a.getRenderer().getWidth()
+    }
+    return 0
+}
+
+function ccbGetScreenHeight() {
+    var a = CL3D.ScriptingInterface.getScriptingInterface().Engine;
+    if (a != null && a.getRenderer()) {
+        return a.getRenderer().getHeight()
+    }
+    return 0
+}
+
+function ccbSetCloseOnEscapePressed() {}
+
+function ccbSetCursorVisible() {}
+
+function ccbSwitchToScene(a) {
+    var b = CL3D.ScriptingInterface.getScriptingInterface().Engine;
+    if (b != null) {
+        return b.gotoSceneByName(a, true)
+    }
+    return false
+}
+
+function ccbPlaySound(c) {
+    var b = CL3D.gSoundManager;
+    var a = b.getSoundFromName(c);
+    if (a != null) {
+        b.play2D(a, false, 1)
+    }
+}
+
+function ccbStopSound(a) {
+    CL3D.gSoundManager.stopSpecificPlayingSound(a)
+}
+
+function ccbGetCopperCubeVariable(a) {
+    var c = CL3D.gScriptingInterface.CurrentlyActiveScene;
+    var b = CL3D.CopperCubeVariable.getVariable(a, true, c);
+    if (b == null) {
+        return null
+    }
+    if (b.isString()) {
+        return b.getValueAsString()
+    }
+    if (b.isInt()) {
+        return b.getValueAsInt()
+    }
+    if (b.isFloat()) {
+        return b.getValueAsFloat()
+    }
+    return null
+}
+
+function ccbSetCopperCubeVariable(a, b) {
+    var d = CL3D.gScriptingInterface.CurrentlyActiveScene;
+    var c = CL3D.CopperCubeVariable.getVariable(a, true, d);
+    if (c == null) {
+        return
+    }
+    if (typeof b == "number") {
+        c.setValueAsFloat(b)
+    } else {
+        c.setValueAsString(b)
+    }
+    CL3D.CopperCubeVariable.saveContentOfPotentialTemporaryVariableIntoSource(c, d)
+}
+
+function ccbSwitchToFullscreen(b, a) {
+    var c = CL3D.ScriptingInterface.getScriptingInterface().Engine;
+    if (c) {
+        c.switchToFullscreen(b, a)
+    }
+}
+
+function ccbReadFileContent(a) {
+    return null
+}
+
+function ccbWriteFileContent(a, b) {}
+
+function ccbGetPlatform() {
+    return "webgl"
+}
+
+function ccbInvokeAction(e, c) {
+    var d = CL3D.gScriptingInterface.CurrentlyActiveScene;
+    if (d == null) {
+        return
+    }
+    if (c == null) {
+        c = d.getRootSceneNode()
+    }
+    if (e >= 0 && e < CL3D.gScriptingInterface.StoredExtensionScriptActionHandlers.length) {
+        var b = CL3D.gScriptingInterface.StoredExtensionScriptActionHandlers[e];
+        if (b != null) {
+            b.execute(c)
+        }
+    }
+}
+
+function print(a) {
+    CL3D.gCCDebugOutput.jsConsolePrint(a)
+}
+
+function system(a) {}
+
+function ccbRegisterBehaviorEventReceiver(b, a) {
+    if (CL3D.gScriptingInterface.CurrentlyRunningExtensionScriptAnimator != null) {
+        CL3D.gScriptingInterface.CurrentlyRunningExtensionScriptAnimator.setAcceptsEvents(b, a)
+    }
+}
+
+function ccbDoHTTPRequest(b, h) {
+    ++CL3D.gScriptingInterface.LastHTTPRequestId;
+    var g = CL3D.gScriptingInterface.LastHTTPRequestId;
+    var a = new CL3D.CCFileLoader(b);
+    var e = CL3D.gScriptingInterface.ccbRegisteredHTTPCallbackArray;
+    var c = new Object();
+    c.loader = a;
+    c.id = g;
+    e.push(c);
+    var d = function(j) {
+        if (h) {
+            h(j)
+        }
+        for (var f = 0; f < e.length; ++f) {
+            if (e[f].id == g) {
+                e.splice(f, 1);
+                break
+            }
+        }
+    };
+
+    a.load(d);
+    return g
+}
+
+function ccbCancelHTTPRequest(c) {
+    var b = CL3D.gScriptingInterface.ccbRegisteredHTTPCallbackArray;
+    for (var a = 0; a < b.length; ++a) {
+        if (b[a].id == c) {
+            b[a].loader.abort();
+            b.splice(a, 1);
+            break
+        }
+    }
+}
+
+function ccbCreateMaterial(i, d, a, b) {
+    var c = CL3D.ScriptingInterface.getScriptingInterface();
+    var h = c.Engine;
+    var g = h.getRenderer();
+    if (g == null) {
+        return -1
+    }
+    var e = g.MaterialPrograms[a];
+    var f = g.createMaterialType(i, d, e.blendenabled, e.blendsfactor, e.blenddfactor);
+    if (f != -1) {
+        if (b != null) {
+            c.ShaderCallbacks["_" + f] = b
+        }
+        if (!c.ShaderCallBackSet) {
+            c.ShaderCallBackSet = true;
+            c.OriginalShaderCallBack = g.OnChangeMaterial;
+            g.OnChangeMaterial = function(j) {
+                if (c.OriginalShaderCallBack) {
+                    c.OriginalShaderCallBack()
+                }
+                var k = c.ShaderCallbacks["_" + j];
+                if (k != null) {
+                    c.CurrentShaderMaterialType = j;
+                    k()
+                }
+            }
+        }
+    }
+    return f
+}
+
+function ccbSetShaderConstant(i, a, l, j, h, f) {
+    var b = CL3D.ScriptingInterface.getScriptingInterface();
+    var k = b.Engine;
+    var g = k.getRenderer();
+    if (g == null) {
+        return
+    }
+    var e = g.getWebGL();
+    var d = g.getGLProgramFromMaterialType(b.CurrentShaderMaterialType);
+    var c = e.getUniformLocation(d, a);
+    e.uniform4f(c, l, j, h, f)
+}
+CL3D.gCurrentJScriptNode = null;
+
+function ccbGetCurrentNode() {
+    return CL3D.gCurrentJScriptNode
+}
+
+function ccbAICommand(c, e, d) {
+    if (!c) {
+        return
+    }
+    var b = c.getAnimatorOfType("gameai");
+    if (!b) {
+        return
+    }
+    if (e == "cancel") {
+        b.aiCommandCancel(c)
+    } else {
+        if (e == "moveto") {
+            var a = new CL3D.Vect3d(0, 0, 0);
+            if (d != null && typeof d.x != "undefined") {
+                a.X = d.x;
+                a.Y = d.y;
+                a.Z = d.z
+            }
+            b.moveToTarget(c, a, c.getAbsolutePosition(), CL3D.CLTimer.getTime())
+        } else {
+            if (e == "attack") {
+                b.attackTarget(c, d, d.getAbsolutePosition(), c.getAbsolutePosition(), CL3D.CLTimer.getTime())
+            }
+        }
+    }
+}
+CL3D.CCDocument = function() {
+    this.CurrentScene = -1;
+    this.ApplicationTitle = "";
+    this.Scenes = new Array();
+    this.UpdateMode = CL3D.Scene.REDRAW_EVERY_FRAME;
+    this.WaitUntilTexturesLoaded = false;
+    this.CanvasWidth = 320;
+    this.CanvasHeight = 200;
+    this.addScene = function(a) {
+        this.Scenes.push(a)
+    };
+
+    this.getCurrentScene = function(a) {
+        if (this.CurrentScene < 0 || this.CurrentScene >= this.Scenes.length) {
+            return null
+        }
+        return this.Scenes[this.CurrentScene]
+    };
+
+    this.setCurrentScene = function(b) {
+        for (var a = 0; a < this.Scenes.length; ++a) {
+            if (this.Scenes[a] === b) {
+                this.CurrentScene = a;
+                return
+            }
+        }
+    }
+};

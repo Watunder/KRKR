@@ -1,0 +1,123 @@
+CL3D.VideoStream = _VideoStream;
+
+class _VideoStream
+{
+    var filename;
+    var renderer;
+    var videoElement = null;
+    var texture = null;
+    var handlerOnVideoEnded = null;
+    var handlerOnVideoFailed = null;
+    var readyToShow = false;
+    var playBackEnded = false;
+    var stopped = false;
+    var state = 0;
+    var playLooped = false;
+    var isError = false;
+
+    function VideoStream(a, b)
+    {
+        this.filename = a;
+        this.renderer = b;
+    }
+
+    function videoBufferReady()
+    {
+        this.state = 2;
+        this.videoElement.play();
+        this.readyToShow = true;
+        var d = this.texture;
+        var c = this.renderer.createTextureFrom2DCanvas(this.videoElement, true);
+        this.renderer.replacePlaceholderTextureWithNewTextureContent(d, c);
+    }
+
+    function videoPlaybackDone()
+    {
+        this.state = 0;
+        this.playBackEnded = true;
+    }
+
+    function errorHappened()
+    {
+        this.state = 0;
+        this.playBackEnded = true;
+        this.isError = true;
+    }
+
+    function play(e)
+    {
+        if (this.state == 2 || this.state == 1)
+            return;
+
+        if (this.videoElement)
+        {
+            if (this.state == 3)
+            {
+                this.videoElement.play();
+                this.state = 2;
+                this.playBackEnded = false;
+                return;
+            }
+            else
+            {
+                if (this.state == 0)
+                {
+                    this.videoElement.currentTime = 0;
+                    this.videoElement.play();
+                    this.state = 2;
+                    this.playBackEnded = false;
+                    return;
+                }
+            }
+        }
+        var c = document.createElement("video");
+        var f = this;
+        this.videoElement = c;
+        this.playLooped = e;
+        c.addEventListener("canplaythrough", function(){f.videoBufferReady();}, true);
+        c.addEventListener("ended", function(){f.videoPlaybackDone();}, true);
+        c.addEventListener("error", function(){f.errorHappened();}, true);
+        c.preload = "auto";
+        c.src = a;
+        c.style.display = "none";
+        if (this.playLooped) c.loop = true;
+        this.state = 1;
+        var d = document.createElement("canvas");
+        if (d == null) return;
+        d.width = 16;
+        d.height = 16;
+        this.texture = this.renderer.createTextureFrom2DCanvas(d, true);
+    }
+
+    function pause()
+    {
+        if (this.state != 2) return;
+
+        this.videoElement.pause();
+        this.state = 3;
+    }
+
+    function stop()
+    {
+        if (this.state != 2) return;
+
+        this.videoElement.pause();
+        this.state = 0;
+    }
+
+    function updateVideoTexture()
+    {
+        if (!this.readyToShow) return;
+
+        if (this.state != 2) return;
+
+        this.renderer.updateTextureFrom2DCanvas(this.texture, this.videoElement);
+    }
+
+    function hasPlayBackEnded()
+    {
+        if (this.state == 0) return true;
+
+        return this.playBackEnded;
+    }
+};

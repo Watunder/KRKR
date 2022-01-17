@@ -1,0 +1,118 @@
+CL3D.MeshSceneNode = _MeshSceneNode;
+
+class _MeshSceneNode extends CL3D.SceneNode
+{
+    var Box = new CL3D.Box3d();
+    var DoesCollision = false;
+    var OwnedMesh = null;
+    var ReadOnlyMaterials = true;
+    var Selector = null;
+    var OccludesLight = true;
+    var ReceivesStaticShadows = false;
+        
+    function _MeshSceneNode()
+    {
+        super.init();
+    }
+
+    function getBoundingBox()
+    {
+        if (this.OwnedMesh) return this.OwnedMesh.Box;
+        return this.Box;
+    }
+
+    function getMesh()
+    {
+        return this.OwnedMesh;
+    }
+
+    function setMesh(a)
+    {
+        this.OwnedMesh = a;
+    }
+
+    function getType()
+    {
+        return "mesh";
+    }
+
+    function OnRegisterSceneNode(d)
+    {
+        var f = this.OwnedMesh;
+        if (this.Visible && f)
+        {
+            var e = false;
+            var a = false;
+            for (var c = 0; c < f.MeshBuffers.length; ++c)
+            {
+                var b = f.MeshBuffers[c];
+                if (b.Mat.isTransparent()) e = true;
+                else a = true;
+            }
+            if (e)
+            {
+                if (this.isParentActiveFPSCameraToRenderChildrenWithoutZBuffer())
+                    d.registerNodeForRendering(this, CL3D.Scene.RENDER_MODE_TRANSPARENT_AFTER_ZBUFFER_CLEAR);
+                else
+                    d.registerNodeForRendering(this, CL3D.Scene.RENDER_MODE_TRANSPARENT);
+            }
+            if (a)
+            {
+                if (this.isParentActiveFPSCameraToRenderChildrenWithoutZBuffer())
+                    d.registerNodeForRendering(this, CL3D.Scene.TRANSPARENT_SOLID_AFTER_ZBUFFER_CLEAR);
+                else
+                    d.registerNodeForRendering(this, CL3D.Scene.RENDER_MODE_DEFAULT);
+            }
+            CL3D.SceneNode.prototype.OnRegisterSceneNode.call(this, d);
+        }
+    }
+
+    function render(c)
+    {
+        c.setWorld(this.AbsoluteTransformation);
+        var d = c.isShadowMapEnabled();
+        for (var b = 0; b < this.OwnedMesh.MeshBuffers.length; ++b)
+        {
+            var a = this.OwnedMesh.MeshBuffers[b];
+            if (a.Mat.isTransparent() == (this.scene.getCurrentRenderMode() == CL3D.Scene.RENDER_MODE_TRANSPARENT))
+            {
+                if (this.ReceivesStaticShadows || !a.Mat.Lighting)
+                    c.quicklyEnableShadowMap(false);
+                c.setMaterial(a.Mat);
+                c.drawMeshBuffer(a);
+            }
+        }
+        if (d) c.quicklyEnableShadowMap(true);
+    }
+
+    function getMaterialCount()
+    {
+        if (this.OwnedMesh) return this.OwnedMesh.MeshBuffers.length;
+        return 0;
+    }
+
+    function getMaterial(b)
+    {
+        if (this.OwnedMesh != null)
+        {
+            if (b >= 0 && b < this.OwnedMesh.MeshBuffers.length)
+            {
+                var a = this.OwnedMesh.MeshBuffers[b];
+                return a.Mat;
+            }
+        }
+        return null;
+    }
+
+    function createClone(b, a, e)
+    {
+        var d = new CL3D.MeshSceneNode();
+        this.cloneMembers(d, b, a, e);
+        if (this.OwnedMesh) d.OwnedMesh = this.OwnedMesh.createClone();
+        d.ReadonlyMaterials = this.ReadonlyMaterials;
+        d.DoesCollision = this.DoesCollision;
+        if (this.Box) d.Box = this.Box.clone();
+        return d;
+    }
+
+};

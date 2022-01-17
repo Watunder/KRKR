@@ -1,0 +1,128 @@
+CL3D.Plane3d = _Plane3d;
+
+CL3D.Plane3d.ISREL3D_FRONT = 0;
+CL3D.Plane3d.ISREL3D_BACK = 1;
+CL3D.Plane3d.ISREL3D_PLANAR = 2;
+
+CL3D.Plane3d.member_list =
+[
+    "D",
+    "Normal",
+    "clone",
+    "recalculateD",
+    "getMemberPoint",
+    "setPlane",
+    "setPlaneFrom3Points",
+    "normalize",
+    "classifyPointRelation",
+    "getIntersectionWithPlanes",
+    "getIntersectionWithPlane",
+    "getIntersectionWithLine",
+    "getDistanceTo",
+    "isFrontFacing"
+];
+
+class _Plane3d
+{
+    var D = 0;
+    var Normal = new CL3D.Vect3d(0, 1, 0);
+
+    function _Plane3d() {}
+
+    function clone()
+    {
+        var inst = new _Plane3d(false);
+
+        inst.Normal = this.Normal.clone();
+        inst.D = this.D;
+        
+        return inst;
+    }
+
+    function recalculateD(a)
+    {
+        this.D = -a.dotProduct(this.Normal);
+    }
+
+    function getMemberPoint()
+    {
+        return this.Normal.multiplyWithScal(-this.D);
+    }
+
+    function setPlane(a, b)
+    {
+        this.Normal = b.clone();
+        this.recalculateD(a);
+    }
+
+    function setPlaneFrom3Points(c, b, a)
+    {
+        this.Normal = (b.substract(c)).crossProduct(a.substract(c));
+        this.Normal.normalize();
+        this.recalculateD(c);
+    }
+
+    function normalize()
+    {
+        var a = (1 / this.Normal.getLength());
+        this.Normal = this.Normal.multiplyWithScal(a);
+        this.D *= a;
+    }
+
+    function classifyPointRelation(a)
+    {
+        var b = this.Normal.dotProduct(a) + this.D;
+        if (b < -0.000001) return CL3D.Plane3d.ISREL3D_BACK;
+        if (b > 0.000001) return CL3D.Plane3d.ISREL3D_FRONT;
+
+        return CL3D.Plane3d.ISREL3D_PLANAR;
+    }
+
+    function getIntersectionWithPlanes(d, c, b)
+    {
+        var a = new CL3D.Vect3d();
+        var e = new CL3D.Vect3d();
+        if (this.getIntersectionWithPlane(d, a, e)) return c.getIntersectionWithLine(a, e, b);
+
+        return false;
+    }
+
+    function getIntersectionWithPlane(j, l, g)
+    {
+        var f = this.Normal.getLength();
+        var e = this.Normal.dotProduct(j.Normal);
+        var a = j.Normal.getLength();
+        var h = f * a - e * e;
+        if (Math.abs(h) < 1e-8) return false;
+
+        var d = 1 / h;
+        var k = (a * -this.D + e * j.D) * d;
+        var i = (f * -j.D + e * this.D) * d;
+        this.Normal.crossProduct(j.Normal).copyTo(g);
+        var c = this.Normal.multiplyWithScal(k);
+        var b = j.Normal.multiplyWithScal(i);
+        c.add(b).copyTo(l);
+        return true;
+    }
+
+    function getIntersectionWithLine(d, e, c)
+    {
+        var b = this.Normal.dotProduct(e);
+        if (b == 0) return false;
+
+        var a = -(this.Normal.dotProduct(d) + this.D) / b;
+        d.add((e.multiplyWithScal(a))).copyTo(c);
+        return true;
+    }
+
+    function getDistanceTo(a)
+    {
+        return a.dotProduct(this.Normal) + this.D;
+    }
+
+    function isFrontFacing(b)
+    {
+        var a = this.Normal.dotProduct(b);
+        return a <= 0;
+    }
+};

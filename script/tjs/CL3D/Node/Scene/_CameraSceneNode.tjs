@@ -1,0 +1,241 @@
+CL3D.CameraSceneNode = _CameraSceneNode;
+
+class _CameraSceneNode extends CL3D.SceneNode
+{
+
+    var Box = new CL3D.Box3d();
+    var DoesCollision = false;
+    var Active = false;
+    var Target = new CL3D.Vect3d(0, 0, 10);
+    var UpVector = new CL3D.Vect3d(0, 1, 0);
+    var Projection = new CL3D.Matrix4();
+    var ViewMatrix = new CL3D.Matrix4();
+    var Fovy = CL3D.PI / 2.5;
+    var Aspect = 4 / 3;
+    var ZNear = 0.1;
+    var ZFar = 3000;
+    var TargetAndRotationAreBound = true;
+    var AutoAdjustAspectratio = true;
+    var ViewMatrixIsSetByUser = false;
+
+    function _CameraSceneNode() 
+    {
+        super.init();
+        this.Projection.buildProjectionMatrixPerspectiveFovLH(this.Fovy, this.Aspect, this.ZNear, this.ZFar);
+    }
+
+    function recalculateProjectionMatrix() 
+    {
+        this.Projection.buildProjectionMatrixPerspectiveFovLH(this.Fovy, this.Aspect, this.ZNear, this.ZFar);
+    }
+
+    function getType()
+    {
+        return "camera";
+    }
+
+    function setAspectRatio(b)
+    {
+        if (!CL3D.equals(this.Aspect, b))
+        {
+            this.AutoAdjustAspectratio = false;
+            this.Aspect = b;
+            this.recalculateProjectionMatrix();
+        }
+    }
+
+    function getAspectRatio()
+    {
+        return this.Aspect;
+    }
+
+    function getFov()
+    {
+        return this.Fovy;
+    }
+
+    function setFov(a)
+    {
+        if (!CL3D.equals(this.Fovy, a))
+        {
+            if (isNaN(a)) return;
+            this.Fovy = a;
+            this.recalculateProjectionMatrix();
+        }
+    }
+
+    function setTarget(a)
+    {
+        if (a)
+        {
+            this.Target = a.clone();
+            if (this.TargetAndRotationAreBound)
+            {
+                this.updateAbsolutePosition();
+                this.Rot = a.substract(this.getAbsolutePosition()).getHorizontalAngle();
+            }
+        }
+    }
+
+    function getTarget()
+    {
+        return this.Target;
+    }
+
+    function getUpVector()
+    {
+        return this.UpVector;
+    }
+
+    function setUpVector(a)
+    {
+        if (a) this.UpVector = a.clone();
+    }
+
+    function getNearValue()
+    {
+        return this.ZNear;
+    }
+
+    function setNearValue(a)
+    {
+        if (!CL3D.equals(this.ZNear, a))
+        {
+            this.ZNear = a;
+            this.recalculateProjectionMatrix();
+        }
+    }
+
+    function getFarValue()
+    {
+        return this.ZFar;
+    }
+
+    function setFarValue(a)
+    {
+        if (!CL3D.equals(this.ZFar, a))
+        {
+            this.ZFar = a;
+            this.recalculateProjectionMatrix();
+        }
+    }
+
+    function recalculateViewArea() {}
+
+    function OnAnimate(b, c)
+    {
+        var a = CL3D.SceneNode.prototype.OnAnimate.call(this, b, c);
+        if (!this.ViewMatrixIsSetByUser) this.calculateViewMatrix();
+        return a;
+    }
+
+    function calculateViewMatrix()
+    {
+        var b = this.getAbsolutePosition();
+        var a = this.Target.clone();
+        if (b.equals(a)) a.X += 1;
+
+        this.ViewMatrix.buildCameraLookAtMatrixLH(b, a, this.UpVector);
+        this.recalculateViewArea();
+    }
+
+    function OnRegisterSceneNode(a)
+    {
+        if (a.getActiveCamera() === this)
+        {
+            a.registerNodeForRendering(this, 2);
+            CL3D.SceneNode.prototype.OnRegisterSceneNode.call(this, a);
+        }
+    }
+
+    function render(a)
+    {
+        if (!this.ViewMatrixIsSetByUser) this.calculateViewMatrix();
+        
+        if (this.Aspect == 0 || this.AutoAdjustAspectratio)
+        {
+            this.setAutoAspectIfNoFixedSet(a.width, a.height);
+            if (this.Aspect == 0) this.setAspectRatio(3 / 4);
+        }
+        a.setProjection(this.Projection);
+        a.setView(this.ViewMatrix);
+    }
+
+    function onMouseDown(b)
+    {
+        for (var a = 0; a < this.Animators.length; ++a)
+        {
+            this.Animators[a].onMouseDown(b);
+        }
+    }
+
+    function onMouseWheel(b)
+    {
+        for (var a = 0; a < this.Animators.length; ++a)
+        {
+            this.Animators[a].onMouseWheel(b);
+        }
+    }
+
+    function onMouseUp(b)
+    {
+        for (var a = 0; a < this.Animators.length; ++a)
+        {
+            this.Animators[a].onMouseUp(b);
+        }
+    }
+
+    function onMouseMove(b)
+    {
+        for (var a = 0; a < this.Animators.length; ++a)
+        {
+            this.Animators[a].onMouseMove(b);
+        }
+    }
+
+    function onKeyDown(c)
+    {
+        var a = false;
+        for (var b = 0; b < this.Animators.length; ++b)
+        {
+            if (this.Animators[b].onKeyDown(c)) a = true;
+        }
+        return a;
+    };
+
+    function onKeyUp(c)
+    {
+        var a = false;
+        for (var b = 0; b < this.Animators.length; ++b)
+        {
+            if (this.Animators[b].onKeyUp(c)) a = true;
+        }
+        return a;
+    }
+
+    function createClone(b, a, e)
+    {
+        var d = new CL3D.CameraSceneNode();
+        this.cloneMembers(d, b, a, e);
+        if (this.Target) d.Target = this.Target.clone();
+        if (this.UpVector) d.UpVector = this.UpVector.clone();
+        if (this.Projection) d.Projection = this.Projection.clone();
+        if (this.ViewMatrix) d.ViewMatrix = this.ViewMatrix.clone();
+        d.Fovy = this.Fovy;
+        d.Aspect = this.Aspect;
+        d.ZNear = this.ZNear;
+        d.ZFar = this.ZFar;
+        if (this.Box) d.Box = this.Box.clone();
+        return d;
+    }
+
+    function setAutoAspectIfNoFixedSet(a, d)
+    {
+        if (a == 0 || d == 0) return;
+        var c = this.Aspect;
+        if (!CL3D.equals(c, 0) && !this.AutoAdjustAspectratio) return;
+        var b = a / d;
+        this.setAspectRatio(b);
+        this.AutoAdjustAspectratio = true;
+    }
+};

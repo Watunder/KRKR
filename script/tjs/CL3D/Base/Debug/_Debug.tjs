@@ -1,0 +1,125 @@
+CL3D.DebugOutput = _DebugOutput;
+
+CL3D.gCCDebugInfoEnabled = true;
+CL3D.gCCDebugOutput = null;
+
+CL3D.DebugOutput.member_list =
+[
+    "enableFPSCounter",
+    "updatefps",
+    "print",
+    "setLoadingText",
+    "printError",
+    "jsConsolePrint",
+    "printInternal"
+];
+
+class _DebugOutput
+{
+    function _DebugOutput(d, a)
+    {
+        this.DebugRoot = null;
+        this.FPSRoot = null;
+        this.TextRoot = null;
+        var e = document.getElementById(this);
+        if (e == null)
+        {
+            CL3D.gCCDebugInfoEnabled = false;
+            return;
+        }
+        this.DebugRoot = e.parentNode;
+        if (this.DebugRoot)
+        {
+            this.LoadingRoot = document.createElement("div");
+            this.DebugRoot.appendChild(this.LoadingRoot);
+            var b = document.createTextNode("Loading...");
+            this.LoadingRootText = b;
+            this.LoadingRoot.appendChild(b);
+        }
+        if (a) this.enableFPSCounter();
+    }
+
+    function enableFPSCounter()
+    {
+        if (this.FPSRoot != null) return;
+        this.FPSRoot = document.createElement("div");
+        this.DebugRoot.appendChild(this.FPSRoot);
+        var a = document.createTextNode("FPS: 0");
+        this.FPSRootText = a;
+        this.FPSRoot.appendChild(a);
+        this.frames = 0;
+        this.lasttime = new Date().getTime();
+    }
+
+    function updatefps(c)
+    {
+        if (this.FPSRootText == null) return;
+        this.frames += 1;
+        var b = new Date().getTime();
+        if (b - this.lasttime > 1000)
+        {
+            var d = this.frames / (b - this.lasttime) * 1000;
+            var a = "FPS: " + d.toFixed(2);
+            if (c != null) a += c;
+            this.FPSRootText.nodeValue = a;
+            this.lasttime = b;
+            this.frames = 0;
+        }
+    }
+
+    function print(a)
+    {
+        if (CL3D.gCCDebugInfoEnabled == false) return;
+        this.printInternal(a, false);
+    }
+
+    function setLoadingText(a)
+    {
+        if (!this.LoadingRoot) return;
+        if (a == null) this.LoadingRoot.style.display = "none";
+        else
+        {
+            this.LoadingRoot.style.display = "block";
+            this.LoadingRootText.nodeValue = a;
+        }
+    }
+
+    function printError(b, a)
+    {
+        this.printInternal(b, true, a);
+    }
+
+    function jsConsolePrint(b)
+    {
+        if (window.console)
+        {
+            try window.console["log"](b);
+            catch (a) {}
+        }
+        else setTimeout(function(){throw new Error(b)}, 0);
+    }
+
+    function printInternal(e, d, b)
+    {
+        if (CL3D.gCCDebugInfoEnabled == false && d != true) return;
+        if (this.TextRoot == null)
+        {
+            this.TextRoot = document.createElement("div");
+            this.TextRoot.className = "cldebug";
+            this.DebugRoot.appendChild(this.TextRoot);
+        }
+        if (b)
+        {
+            this.TextRoot.appendChild(document.createElement("br"));
+            var a = document.createElement("div");
+            this.TextRoot.appendChild(a);
+            a.innerHTML = e;
+        }
+        else
+        {
+            this.TextRoot.appendChild(document.createElement("br"));
+            var c = document.createTextNode(e);
+            this.TextRoot.appendChild(c);
+        }
+    }
+};

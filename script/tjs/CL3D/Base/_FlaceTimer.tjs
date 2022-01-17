@@ -1,0 +1,7 @@
+CL3D.CLTimer = function() {};
+
+CL3D.CLTimer.getTime = function()
+{
+    var a = new Date();
+    return a.getTime();
+};

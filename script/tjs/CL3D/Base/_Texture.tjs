@@ -1,0 +1,68 @@
+CL3D.Texture = _Texture;
+
+CL3D.Texture.member_list =
+[
+    "getImage",
+    "getWebGLTexture",
+    "getWidth",
+    "getHeight",
+    "getURL",
+    "isLoaded"
+];
+
+class _Texture
+{
+    var Name = "";
+    var Loaded = false;
+    var Image = null;
+    var Texture = null;
+    var RTTFrameBuffer = null;
+    var CachedWidth = null;
+    var CachedHeight = null;
+    var OriginalWidth = null;
+    var OriginalHeight = null;
+
+    function _Texture() {}
+
+    function getImage()
+    {
+        return this.Image;
+    }
+
+    function getWebGLTexture()
+    {
+        return this.Texture;
+    }
+
+    function getWidth()
+    {
+        if (this.Image)
+            return this.Image.width;
+
+        if (this.CachedWidth != null)
+            return this.CachedWidth;
+
+        return 0;
+    }
+
+    function getHeight()
+    {
+        if (this.Image)
+            return this.Image.height;
+
+        if (this.CachedHeight != null)
+            return this.CachedHeight;
+
+        return 0;
+    }
+
+    function getURL()
+    {
+        return this.Name;
+    }
+
+    function isLoaded()
+    {
+        return this.Loaded;
+    }
+};

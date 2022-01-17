@@ -1,0 +1,57 @@
+CL3D.Mesh = _Mesh;
+
+CL3D.Mesh.member_list =
+[
+    "Box",
+    "MeshBuffers",
+    "AddMeshBuffer",
+    "GetMeshBuffers",
+    "GetPolyCount",
+    "createClone"
+];
+
+class _Mesh
+{
+    var Box = new CL3D.Box3d();
+    var MeshBuffers = new Array();
+
+    function _Mesh() {}
+
+    function AddMeshBuffer(a)
+    {
+        this.MeshBuffers.push(a);
+    }
+
+    function GetMeshBuffers()
+    {
+        return this.MeshBuffers;
+    }
+
+    function GetPolyCount()
+    {
+        var b = 0;
+        if (this.MeshBuffers)
+        {
+            for (var a = 0; a < this.MeshBuffers.length; ++a)
+            {
+                if (this.MeshBuffers[a].Indices)
+                    b += this.MeshBuffers[a].Indices.length;
+        }
+        return b / 3;
+    }
+
+    function createClone()
+    {
+        var a = new CL3D.Mesh();
+        a.Box = this.Box.clone();
+        if (this.MeshBuffers)
+        {
+            for (var b = 0; b < this.MeshBuffers.length; ++b)
+            {
+                if (this.MeshBuffers[b])
+                    a.MeshBuffers.push(this.MeshBuffers[b].createClone());
+            }
+        }
+        return a;
+    }
+};

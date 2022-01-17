@@ -1,0 +1,317 @@
+CL3D.SceneNode = _SceneNode;
+
+CL3D.SceneNode.member_list =
+[
+    "init",
+    "getParant",
+    "getChildren",
+    "getType",
+    "getBoundingBox",
+    "getAnimators",
+    "getAnimatorOfType",
+    "findActionOfType",
+    "getTransformedBoundingBox",
+    "cloneMembers",
+    "createClone",
+    "addAnimator",
+    "removeAnimator",
+    "addChild",
+    "removeChild",
+    "OnRegisterSceneNode",
+    "OnAnimate",
+    "getRelativeTransformation",
+    "updateAbsolutePosition",
+    "render",
+    "getAbsoluteTransformation",
+    "getAbsolutePosition",
+    "getMaterialCount",
+    "getMaterial",
+    "isActuallyVisible",
+    "onDeserializedWithChildren",
+    "replaceAllReferencedNodes",
+    "isParentActiveFPSCameraToRenderChildrenWithoutZBuffer"
+];
+
+class _SceneNode
+{
+    var Type = -1;
+    var Pos = new CL3D.Vect3d();
+    var Rot = new CL3D.Vect3d();
+    var Scale = new CL3D.Vect3d(1, 1, 1);
+    var Visible = true;
+    var Name = "";
+    var Culling = 0;
+    var Id = -1;
+    var Parent = null;
+    var Children = new Array();
+    var Animators = new Array();
+    var AbsoluteTransformation = new CL3D.Matrix4();
+    var scene = null;
+    var Selector = null;
+
+    function _SceneNode() {}
+
+    function init()
+    {
+        this.Pos = new CL3D.Vect3d();
+        this.Rot = new CL3D.Vect3d();
+        this.Scale = new CL3D.Vect3d(1, 1, 1);
+        this.Children = new Array();
+        this.Animators = new Array();
+        this.AbsoluteTransformation = new CL3D.Matrix4();
+    }
+
+    function getParent()
+    {
+        return this.Parent;
+    }
+
+    function getChildren()
+    {
+        return this.Children;
+    }
+
+    function getType()
+    {
+        return "none";
+    }
+
+    function getBoundingBox()
+    {
+        return new CL3D.Box3d();
+    }
+
+    function getAnimators()
+    {
+        return this.Animators;
+    }
+
+    function getAnimatorOfType(c)
+    {
+        for (var b = 0; b < this.Animators.length; ++b)
+        {
+            var a = this.Animators[b];
+            if (a.getType() == c) return a;
+        }
+        return null;
+    };
+
+    function findActionOfType(c)
+    {
+        for (var b = 0; b < this.Animators.length; ++b)
+        {
+            var a = this.Animators[b];
+            var d = a.findActionByType(c);
+            if (d != null) return d;
+        }
+        return null;
+    };
+
+    function getTransformedBoundingBox()
+    {
+        var a = this.getBoundingBox().clone();
+        this.AbsoluteTransformation.transformBoxEx(a);
+        return a;
+    }
+
+    function cloneMembers(k, l, d, f)
+    {
+        k.Name = new String(this.Name);
+        k.Visible = this.Visible;
+        k.Culling = this.Culling;
+        k.Pos = this.Pos.clone();
+        k.Rot = this.Rot.clone();
+        k.Scale = this.Scale.clone();
+        k.Type = this.Type;
+        k.scene = this.scene;
+
+        if (l) l.addChild(k);
+
+        for (var h = 0; h < this.Children.length; ++h)
+        {
+            var j = this.Children[h];
+            if (j)
+            {
+                var e = -1;
+                if (l && l.scene)
+                    e = l.scene.getUnusedSceneNodeId();
+
+                var g = j.createClone(k, j.Id, e);
+                if (g != null)
+                {
+                    g.Id = e;
+                    k.addChild(g);
+                }
+            }
+        }
+
+        for (var h = 0; h < this.Animators.length; ++h)
+        {
+            var a = this.Animators[h];
+            k.addAnimator(a.createClone(this, this.scene, d, f));
+        }
+
+        if (this.AbsoluteTransformation)
+            k.AbsoluteTransformation = this.AbsoluteTransformation.clone();
+    }
+
+    function createClone(b, a, c)
+    {
+        return null;
+    }
+
+    function addAnimator(b)
+    {
+        if (b != null) this.Animators.push(b);
+    }
+
+    function removeAnimator(b)
+    {
+        if (b == null) return;
+
+        var d;
+        for (d = 0; d < this.Animators.length; ++d)
+        
+            var c = this.Animators[d];
+            if (c === b)
+            {
+                this.Animators.splice(d, 1);
+                return;
+            }
+        }
+    }
+
+    function addChild(a)
+    {
+        if (a)
+        {
+            a.scene = this.scene;
+            if (a.Parent)
+                a.Parent.removeChild(a);
+            a.Parent = this;
+            this.Children.push(a);
+        }
+    }
+
+    function removeChild(b)
+    {
+        for (var a = 0; a < this.Children.length; ++a)
+        {
+            if (this.Children[a] === b)
+            {
+                b.Parent = null;
+                this.Children.splice(a, 1);
+                return;
+            }
+        }
+    }
+
+    function OnRegisterSceneNode(b)
+    {
+        if (this.Visible)
+        {
+            for (var a = 0; a < this.Children.length; ++a)
+            {
+                var d = this.Children[a];
+                d.OnRegisterSceneNode(b);
+            }
+        }
+    }
+
+    function OnAnimate(h, k)
+    {
+        var e = false;
+        if (this.Visible)
+        {
+            var f;
+            var b = this.Animators.length;
+            for (f = 0; f < b;)
+            {
+                var d = this.Animators[f];
+                e = d.animateNode(this, k) || e;
+                var g = b;
+                b = this.Animators.length;
+                if (g >= b) ++f;
+            }
+            this.updateAbsolutePosition();
+            for (f = 0; f < this.Children.length; ++f)
+            {
+                var j = this.Children[f];
+                e = j.OnAnimate(h, k) || e;
+            }
+        }
+        return e;
+    }
+
+    function getRelativeTransformation()
+    {
+        var b = new CL3D.Matrix4();
+        b.setRotationDegrees(this.Rot);
+        b.setTranslation(this.Pos);
+        if (this.Scale.X != 1 || this.Scale.Y != 1 || this.Scale.Z != 1)
+        {
+            var a = new CL3D.Matrix4();
+            a.setScale(this.Scale);
+            b = b.multiply(a);
+        }
+        return b;
+    }
+
+    function updateAbsolutePosition()
+    {
+        if (this.Parent != null)
+            this.AbsoluteTransformation = this.Parent.AbsoluteTransformation.multiply(this.getRelativeTransformation());
+        else
+            this.AbsoluteTransformation = this.getRelativeTransformation();
+    }
+
+    function render(a) {};
+
+    function getAbsoluteTransformation()
+    {
+        return this.AbsoluteTransformation;
+    }
+
+    function getAbsolutePosition()
+    {
+        return this.AbsoluteTransformation.getTranslation();
+    }
+
+    function getMaterialCount()
+    {
+        return 0
+    }
+
+    function getMaterial(a)
+    {
+        return null;
+    }
+
+    function isActuallyVisible()
+    {
+        var a = this;
+        while (a)
+        {
+            if (!a.Visible)
+                return false;
+            a = a.Parent
+        }
+        return true;
+    }
+
+    function onDeserializedWithChildren() {};
+
+    function replaceAllReferencedNodes(a, b) {};
+
+    function isParentActiveFPSCameraToRenderChildrenWithoutZBuffer()
+    {
+        if (!this.scene) return false;
+
+        if (!(this.scene.ActiveCamera === this.Parent)) return false
+
+        var a = this.Parent.getAnimatorOfType("camerafps");
+        if (a == null) return false;
+
+        return a.ChildrenDontUseZBuffer;
+    }
+};

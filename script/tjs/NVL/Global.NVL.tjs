@@ -1,0 +1,530 @@
+global.NVL = new _NVL();
+
+global.NVL.Tag = function(){};
+
+const nvl_tag = 
+%[
+  "版本" => "version 3.90 beta",//////////////////////////////////////////////////////////////////////////
+  "图像" => [ "bg", "fg", "face", "clbg", "clfg" ],///////////////////////////////////////////////////////
+  "对话" => [ "dia", "scr", "menu", "npc", "hidemes", "showmes", "waitclick", "wait", "jump", "label" ],//
+  "音声" => [ "bgm", "se", "ws", "stopbgm", "fadebgm", "fadeoutbgm", "stopse" ],//////////////////////////
+  "选项" => [ "selstart", "locate", "selbutton", "selend", "clsel" ],/////////////////////////////////////
+  "图形动画" =>
+  [
+    "quake", "wq", "movepos", "particleinit", "particleuninit",//
+    "action", "wact", "stopaction", "mv", "vo",//////////////////
+    "backlay", "image", "freeimage", "trans", "wt",//////////////
+    "map", "clmap", "edu", "cledu"///////////////////////////////
+  ],
+  "变数系统" =>
+  [
+    "eval", "emb", "if", "elsif", "else", "endif",////////////////////////
+    "nowait", "endnowait", "style", "er", "cm", "ct", "addcg", "addend",//
+    "close", "gotostart", "history", "call", "return",////////////////////
+    "text", "iscript", "endscript"////////////////////////////////////////
+  ],
+  "其他指令" =>
+  [
+    "edit"
+  ]
+];
+
+/// 图像
+{
+    global.NVL.Tag.bg = function(params)
+    {
+        params["clfg"];
+        params["hidemes"];
+        params["canskip"];
+        params["convert"];
+        params["grayscale"];
+
+        params["storage"];
+        params["method"];
+        params["rule"];
+        params["time"];
+        params["mcolor"];
+        params["mopacity"];
+
+        //params["l"];
+        //params["m"];
+        //params["r"];
+    };
+
+    global.NVL.Tag.fg = function(params)
+    {
+        params["canskip"];
+        params["locate"];
+
+        params["layer"];
+        params["storage"];
+        params["method"];
+        params["rule"];
+        params["time"];
+        params["left"];
+        params["top"];
+        params["pos"];
+        params["opacity"];
+    };
+
+    global.NVL.Tag.face = function(params)
+    {
+        params["canskip"];
+
+        params["storage"];
+        params["method"];
+        params["rule"];
+        params["time"];
+        params["opacity"];
+
+        //params["layer"];
+        //params["storage"];
+    };
+
+    global.NVL.Tag.clbg = function(params)
+    {
+        params["clfg"];
+        params["hidemes"];
+        params["canskip"];
+
+        params["method"];
+        params["rule"];
+        params["time"];
+    };
+
+    global.NVL.Tag.clfg = function(params)
+    {
+        params["clface"];
+        params["hidemes"];
+        params["canskip"];
+
+        params["method"];
+        params["rule"];
+        params["time"];
+    };
+}
+
+/// 对话
+{
+    global.nvl_label = %[];
+
+    global.NVL.Tag.dia = function(params)
+    {
+
+    };
+
+    global.NVL.Tag.scr = function()
+    {
+
+    };
+
+    global.NVL.Tag.menu = function()
+    {
+
+    };
+
+    global.NVL.Tag.npc = function()
+    {
+
+    };
+
+    global.NVL.Tag.hidemes = function()
+    {
+        
+    };
+
+    global.NVL.Tag.showmes = function()
+    {
+        
+    };
+
+    global.NVL.Tag.waitclick = function()
+    {
+
+    };
+
+    global.NVL.Tag.wait = function()
+    {
+        params["time"];
+        params["canskip"];
+    };
+
+    global.NVL.Tag.jump = function()
+    {
+        params["target"];
+        params["storage"];
+    };
+
+    global.NVL.Tag.label = function(params)
+    {
+        params["*"];
+        params["|"];
+
+    };
+}
+
+/// 音声
+{
+    global.NVL.Tag.bgm = function()
+    {
+        params["loop"];
+
+        params["storage"];
+        params["time"];
+        params["overlap"];
+    };
+
+    global.NVL.Tag.se = function()
+    {
+        params["loop"];
+
+        params["storage"];
+        params["time"];
+        params["overlap"];
+    };
+
+    global.NVL.Tag.ws = function()
+    {
+        params["canskip"];
+
+        params["buf"];
+    };
+
+    global.NVL.Tag.stopbgm = function()
+    {
+
+    };
+
+    global.NVL.Tag.fadebgm = function()
+    {
+        params["time"];
+        params["volume"];
+    };
+
+    global.NVL.Tag.fadeoutbgm = function()
+    {
+        params["time"];
+    };
+
+    global.NVL.Tag.stopse = function()
+    {
+        params["buf"];
+    };
+
+    global.NVL.Tag.fadese = function()
+    {
+        params["buf"];
+        params["time"];
+        params["volume"];
+    };
+
+    global.NVL.Tag.fadeoutse = function()
+    {
+        params["buf"];
+        params["time"];
+    };
+}
+
+/// 选项
+{
+    global.nvl_sel = %[];
+
+    global.NVL.Tag.selstart = function()
+    {
+        params["hidesysbutton"];
+
+        params["hidemes"];
+    };
+
+    global.NVL.Tag.locate = function()
+    {
+        params["x"];
+        params["y"];
+    };
+
+    global.NVL.Tag.selbutton = function()
+    {
+        params["text"];
+        params["normal"];
+        params["over"];
+        params["on"];
+        params["enterse"];
+        params["clickse"];
+        params["target"];
+        params["storage"];
+        params["exp"];
+    };
+
+    global.NVL.Tag.selend = function()
+    {
+        params["canskip"];
+
+        params["time"];
+        params["method"];
+        params["rule"];
+    };
+
+    global.NVL.Tag.clsel = function()
+    {
+        params["canskip"];
+
+        params["time"];
+        params["method"];
+        params["rule"];
+    };
+}
+
+/// 图形动画
+{
+    {
+        global.NVL.Tag.quake = function(params)
+        {
+            params["time"];
+            params["hmax"];
+            params["vmax"];
+        };
+
+        global.NVL.Tag.wq = function(params)
+        {
+            params["canskip"];
+        };
+
+        global.NVL.Tag.movepos = function(params)
+        {
+            params["canskip"];
+
+            params["layer"];
+            params["x"];
+            params["y"];
+            params["opacity"];
+            params["time"];
+            params["accel"];
+        };
+
+        global.NVL.Tag.particleinit = function(params)
+        {
+            params["name"];
+        };
+
+        global.NVL.Tag.particleuninit = function(params)
+        {
+            params["name"];
+        };
+    }
+
+    {
+        global.NVL.Tag.action = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.wact = function(params)
+        {
+
+        };
+
+        global.NVL.Tag.stopaction = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.mv = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.vo = function(params)
+        {
+            
+        };
+    }
+
+    {
+        global.NVL.Tag.backlay = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.image = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.freeimage = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.trans = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.wait = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.wait = function(params)
+        {
+            
+        };
+    }
+
+    {
+        global.NVL.Tag.map = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.clmap = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.edu = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.cledu = function(params)
+        {
+            
+        };
+    }
+}
+
+/// 变数系统
+{
+    {
+        global.NVL.Tag.eval = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.emb = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.if = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.elsif = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.else = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.endif = function(params)
+        {
+            
+        };
+    }
+
+    {
+        global.NVL.Tag.nowait = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.endnowait = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.style = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.er = function()
+        {
+            
+        };
+
+        global.NVL.Tag.cm = function()
+        {
+            
+        };
+
+        global.NVL.Tag.ct = function()
+        {
+            
+        };
+
+        global.NVL.Tag.addcg = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.addcg = function(params)
+        {
+            
+        };
+    }
+
+    {
+        global.NVL.Tag.close = function(params)
+        {
+            params["ask"];
+        };
+
+        global.NVL.Tag.gotostart = function(params)
+        {
+            params["ask"];
+        };
+
+        global.NVL.Tag.history = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.call = function(params)
+        {
+            
+        };
+
+        global.NVL.Tag.return = function(params)
+        {
+            
+        };
+    }
+
+    {
+        global.NVL.Tag.text = function()
+        {
+            
+        };
+
+        global.NVL.Tag.iscript = function()
+        {
+            
+        };
+
+        global.NVL.Tag.endscript = function()
+        {
+            
+        };
+    }
+}
+
+/// 其他指令
+{
+    {
+        global.NVL.Tag.edit = function(params)
+        {
+
+        };
+    }
+
+    {
+
+    }
+}

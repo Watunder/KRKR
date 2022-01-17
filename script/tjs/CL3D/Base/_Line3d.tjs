@@ -1,0 +1,19 @@
+CL3D.Line3d = _Line3d;
+
+class _Line3d
+{
+    var Start = new CL3D.Vect3d();
+    var End = new CL3D.Vect3d();
+
+    function _Line3d() {}
+
+    function getVector()
+    {
+        return this.End.substract(this.Start);
+    }
+
+    function getLength()
+    {
+        return this.getVector().getLength();
+    }
+};

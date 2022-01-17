@@ -1,0 +1,96 @@
+CL3D.CubeSceneNode = _CubeSceneNode;
+
+class _CubeSceneNode extends CL3D.MeshSceneNode
+{
+    var OwnedMesh = new CL3D.Mesh();
+
+    function _CubeSceneNode(m, l, k)
+    {
+        super.init();
+        if (m == null) m = 10;
+        if (l == null) l = m;
+        if (k == null) k = l;
+        var b = new CL3D.MeshBuffer();
+        var o = [0, 2, 1, 0, 3, 2, 1, 5, 4, 1, 2, 5, 4, 6, 7, 4, 5, 6, 7, 3, 0, 7, 6, 3, 9, 5, 2, 9, 8, 5, 0, 11, 10, 0, 10, 7];
+        this.OwnedMesh.AddMeshBuffer(b);
+        var p = CL3D.createColor(255, 255, 255, 255);
+        var j = new Array();
+        j.push(this.createVertex(0, 0, 0, -1, -1, -1, p, 0, 1));
+        j.push(this.createVertex(1, 0, 0, 1, -1, -1, p, 1, 1));
+        j.push(this.createVertex(1, 1, 0, 1, 1, -1, p, 1, 0));
+        j.push(this.createVertex(0, 1, 0, -1, 1, -1, p, 0, 0));
+        j.push(this.createVertex(1, 0, 1, 1, -1, 1, p, 0, 1));
+        j.push(this.createVertex(1, 1, 1, 1, 1, 1, p, 0, 0));
+        j.push(this.createVertex(0, 1, 1, -1, 1, 1, p, 1, 0));
+        j.push(this.createVertex(0, 0, 1, -1, -1, 1, p, 1, 1));
+        j.push(this.createVertex(0, 1, 1, -1, 1, 1, p, 0, 1));
+        j.push(this.createVertex(0, 1, 0, -1, 1, -1, p, 1, 1));
+        j.push(this.createVertex(1, 0, 1, 1, -1, 1, p, 1, 0));
+        j.push(this.createVertex(1, 0, 0, 1, -1, -1, p, 0, 0));
+        for (var f = 0; f < 12; ++f)
+        {
+            var n = j[f].Pos;
+            n.X *= m;
+            n.Y *= l;
+            n.Z *= k;
+            n.X -= m * 0.5;
+            n.Y -= l * 0.5;
+            n.Z -= k * 0.5;
+            j[f].Normal.normalize();
+        }
+        if (true)
+        {
+            var h = b.Vertices;
+            var e = b.Indices;
+            var g = new CL3D.Plane3d();
+            for (var f = 0; f < o.length; f += 3)
+            {
+                var d = CL3D.cloneVertex3D(j[o[f]]);
+                var c = CL3D.cloneVertex3D(j[o[f + 1]]);
+                var a = CL3D.cloneVertex3D(j[o[f + 2]]);
+                g.setPlaneFrom3Points(d.Pos, c.Pos, a.Pos);
+                d.Normal = g.Normal.clone();
+                c.Normal = g.Normal.clone();
+                a.Normal = g.Normal.clone();
+                h.push(d);
+                h.push(c);
+                h.push(a);
+                b.Indices.push(f);
+                b.Indices.push(f + 1);
+                b.Indices.push(f + 2);
+            }
+        }
+        else
+        {
+            b.Indices = o;
+            b.Vertices = j;
+        }
+        b.recalculateBoundingBox();
+        this.OwnedMesh.Box = b.Box.clone();
+    }
+
+    function createVertex(g, f, e, d, c, b, j, i, h)
+    {
+        var a = new CL3D.Vertex3D(true);
+        a.Pos.X = g;
+        a.Pos.Y = f;
+        a.Pos.Z = e;
+        a.Normal.X = d;
+        a.Normal.Y = c;
+        a.Normal.Z = b;
+        a.TCoords.X = i;
+        a.TCoords.Y = h;
+        return a;
+    }
+
+    function createClone(b, a, e)
+    {
+        var d = new CL3D.CubeSceneNode();
+        this.cloneMembers(d, b, a, e);
+        d.OwnedMesh = this.OwnedMesh;
+        d.ReadonlyMaterials = this.ReadonlyMaterials;
+        d.DoesCollision = this.DoesCollision;
+        if (this.Box) d.Box = this.Box.clone();
+        return d;
+    }
+};

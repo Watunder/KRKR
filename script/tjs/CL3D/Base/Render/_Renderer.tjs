@@ -1,0 +1,1571 @@
+CL3D.Renderer = _Renderer;
+
+class _Renderer
+{
+    var TheTextureManager;
+    var canvas = null;
+    var gl = null;
+    var width = 0;
+    var height = 0;
+    var textureWasLoadedFlag = false;
+    var Projection = new CL3D.Matrix4();
+    var View = new CL3D.Matrix4();
+    var World = new CL3D.Matrix4();
+    var AmbientLight = new CL3D.ColorF();
+    var AmbientLight.R = 0;
+    var AmbientLight.G = 0;
+    var AmbientLight.B = 0;
+    var programStandardMaterial = null;
+    var programLightmapMaterial = null;
+    var MaterialPrograms = new Array();
+    var MaterialProgramsWithLight = new Array();
+    var MaterialProgramsFog = new Array();
+    var MaterialProgramsWithLightFog = new Array();
+    var MaterialProgramsWithShadowMap = new Array();
+    var MinExternalMaterialTypeId = 30;
+    var Program2DDrawingColorOnly = null;
+    var Program2DDrawingTextureOnly = null;
+    var Program2DDrawingCanvasFontColor = null;
+    var OnChangeMaterial = null;
+    var StaticBillboardMeshBuffer = null;
+    var Lights = new Array();
+    var DirectionalLight = null;
+    var currentGLProgram = null;
+    var domainTextureLoadErrorPrinted = false;
+    var printShaderErrors = true;
+    var CurrentRenderTarget = null;
+    var InvertedDepthTest = false;
+    var FogEnabled = false;
+    var FogColor = new CL3D.ColorF();
+    var FogDensity = 0.01;
+    var WindSpeed = 1;
+    var WindStrength = 4;
+    var ShadowMapEnabled = false;
+    var ShadowMapTexture = null;
+    var ShadowMapTexture2 = null;
+    var ShadowMapLightMatrix = null;
+    var ShadowMapLightMatrix2 = null;
+    var ShadowMapUsesRGBPacking = false;
+    var ShadowMapBias1 = 0.000003;
+    var ShadowMapBias2 = 0.000003;
+    var ShadowMapBackFaceBias = 0.5;
+    var ShadowMapOpacity = 0.5;
+    var UsesWebGL2 = false;
+
+    function _Renderer(a)
+    {
+        this.TheTextureManager = a;
+    }
+
+    function getWidth()
+    {
+        return this.width;
+    }
+
+    function getAndResetTextureWasLoadedFlag()
+    {
+        var a = this.textureWasLoadedFlag;
+        this.textureWasLoadedFlag = false;
+        return a;
+    }
+
+    function getWebGL()
+    {
+        return this.gl;
+    }
+
+    function getHeight()
+    {
+        return this.height;
+    }
+
+    function registerFrame() {};
+
+    function drawMesh(d, a)
+    {
+        if (d == null) return;
+        
+        for (var c = 0; c < d.MeshBuffers.length; ++c)
+        {
+            var b = d.MeshBuffers[c];
+            this.setMaterial(b.Mat, a);
+            this.drawMeshBuffer(b);
+        }
+    }
+
+    function setMaterial(c, a)
+    {
+        if (c == null) return;
+        var f = this.gl;
+        if (f == null) return;
+        
+        var b = null;
+        try
+        {
+            if (this.ShadowMapEnabled && !a)
+                b = this.MaterialProgramsWithShadowMap[c.Type];
+            else
+            {
+                if (this.FogEnabled)
+                {
+                    if (c.Lighting)
+                        b = this.MaterialProgramsWithLightFog[c.Type];
+                    else
+                        b = this.MaterialProgramsFog[c.Type];
+                }
+                else
+                {
+                    if (c.Lighting)
+                        b = this.MaterialProgramsWithLight[c.Type];
+                    else
+                        b = this.MaterialPrograms[c.Type];
+                }
+            }
+        } catch (d) {}
+        if (b == null) return;
+        
+        this.currentGLProgram = b;
+        f.useProgram(b);
+        if (this.OnChangeMaterial != null)
+        {
+            try this.OnChangeMaterial(c.Type);
+            catch (d) {}
+        }
+        if (b.shaderCallback != null) b.shaderCallback();
+        
+        if (b.blendenabled)
+        {
+            f.enable(f.BLEND);
+            f.blendFunc(b.blendsfactor, b.blenddfactor);
+        }
+        else f.disable(f.BLEND);
+
+        if (!c.ZWriteEnabled || c.doesNotUseDepthMap())
+            f.depthMask(false);
+        else f.depthMask(true);
+
+        if (c.ZReadEnabled) f.enable(f.DEPTH_TEST);
+        else f.disable(f.DEPTH_TEST);
+        f.depthFunc(this.InvertedDepthTest ? f.GREATER : f.LEQUAL);
+
+        if (c.BackfaceCulling) f.enable(f.CULL_FACE);
+        else f.disable(f.CULL_FACE);
+        
+        if (c.Tex1 && c.Tex1.Loaded)
+        {
+            f.activeTexture(f.TEXTURE0);
+            f.bindTexture(f.TEXTURE_2D, c.Tex1.Texture);
+            f.texParameteri(f.TEXTURE_2D, f.TEXTURE_WRAP_S, c.ClampTexture1 ? f.CLAMP_TO_EDGE : f.REPEAT);
+            f.texParameteri(f.TEXTURE_2D, f.TEXTURE_WRAP_T, c.ClampTexture1 ? f.CLAMP_TO_EDGE : f.REPEAT);
+        }
+        else
+        {
+            f.activeTexture(f.TEXTURE0);
+            f.bindTexture(f.TEXTURE_2D, null);
+        }
+        f.uniform1i(f.getUniformLocation(b, "texture1"), 0);
+        if (c.Tex2 && c.Tex2.Loaded)
+        {
+            f.activeTexture(f.TEXTURE1);
+            f.bindTexture(f.TEXTURE_2D, c.Tex2.Texture);
+        }
+        else
+        {
+            f.activeTexture(f.TEXTURE1);
+            f.bindTexture(f.TEXTURE_2D, null);
+        }
+        f.uniform1i(f.getUniformLocation(b, "texture2"), 1);
+    }
+
+    function setCullMode(c)
+    {
+        var b = this.gl;
+        var a = 0;
+        if (c == 1) a = b.FRONT;
+        else
+        {
+            if (c == 2) a = b.BACK;
+            else if (c == 3) a = b.FRONT_AND_BACK;
+        }
+        b.cullFace(a);
+    }
+
+    function drawMeshBuffer(a, b)
+    {
+        if (a == null) return;
+        
+        if (this.gl == null) return;
+        
+        if (a.RendererNativeArray == null)
+            this.createRendererNativeArray(a);
+        else
+        {
+            if (a.OnlyUpdateBufferIfPossible)
+                this.updateRendererNativeArray(a);
+            else if (a.OnlyPositionsChanged)
+                this.updatePositionsInRendererNativeArray(a);
+        }
+        a.OnlyPositionsChanged = false;
+        a.OnlyUpdateBufferIfPossible = false;
+        this.drawWebGlStaticGeometry(a.RendererNativeArray, b);
+    }
+
+    function updateRendererNativeArray(a)
+    {
+        if (a.Vertices.length == 0 || a.Indices.length == 0)
+            return;
+        
+        if (a.RendererNativeArray.vertexCount < a.Vertices.length || a.RendererNativeArray.indexCount < a.Indices.length)
+        {
+            a.RendererNativeArray = null;
+            this.createRendererNativeArray(a);
+            return；
+        }
+        if (a.RendererNativeArray != null)
+        {
+            var d = this.gl;
+            var e = a.Vertices.length;
+            var f = a.RendererNativeArray.positionsArray;
+            var k = a.RendererNativeArray.colorArray;
+            for (var c = 0; c < e; ++c)
+            {
+                var l = a.Vertices[c];
+                f[c * 3 + 0] = l.Pos.X;
+                f[c * 3 + 1] = l.Pos.Y;
+                f[c * 3 + 2] = l.Pos.Z;
+                k[c * 4 + 0] = CL3D.getRed(l.Color) / 255;
+                k[c * 4 + 1] = CL3D.getGreen(l.Color) / 255;
+                k[c * 4 + 2] = CL3D.getBlue(l.Color) / 255;
+                k[c * 4 + 3] = CL3D.getAlpha(l.Color) / 255;
+            }
+            d.bindBuffer(d.ARRAY_BUFFER, a.RendererNativeArray.positionBuffer);
+            d.bufferSubData(d.ARRAY_BUFFER, 0, f);
+            d.bindBuffer(d.ARRAY_BUFFER, a.RendererNativeArray.colorBuffer);
+            d.bufferSubData(d.ARRAY_BUFFER, 0, k);
+            if (a.RendererNativeArray.indexCount < a.Indices.length)
+            {
+                var g = a.Indices.length;
+                var h = new WebGLUnsignedShortArray(g);
+                for (var b = 0; b < g; b += 3)
+                {
+                    h[b + 0] = a.Indices[b + 0];
+                    h[b + 1] = a.Indices[b + 2];
+                    h[b + 2] = a.Indices[b + 1];
+                }
+                a.RendererNativeArray.indexBuffer = d.createBuffer();
+                d.bindBuffer(d.ELEMENT_ARRAY_BUFFER, a.RendererNativeArray.indexBuffer);
+                d.bufferData(d.ELEMENT_ARRAY_BUFFER, h, d.STATIC_DRAW);
+                d.bindBuffer(d.ELEMENT_ARRAY_BUFFER, null)
+            }
+            a.RendererNativeArray.indexCount = a.Indices.length;
+            a.RendererNativeArray.vertexCount = a.Vertices.length;
+        }
+    }
+
+    function updatePositionsInRendererNativeArray(c)
+    {
+        if (c.RendererNativeArray != null)
+        {
+            var f = this.gl;
+            var a = c.Vertices.length;
+            var e = c.RendererNativeArray.positionsArray;
+            for (var d = 0; d < a; ++d)
+            {
+                var b = c.Vertices[d];
+                e[d * 3 + 0] = b.Pos.X;
+                e[d * 3 + 1] = b.Pos.Y;
+                e[d * 3 + 2] = b.Pos.Z;
+            }
+            f.bindBuffer(f.ARRAY_BUFFER, c.RendererNativeArray.positionBuffer);
+            f.bufferSubData(f.ARRAY_BUFFER, 0, e);
+        }
+    }
+
+    function createRendererNativeArray(s)
+    {
+        if (s.RendererNativeArray == null)
+        {
+            var n = this.gl;
+            var k = new Object();
+            var q = s.Vertices.length;
+            var r = new WebGLFloatArray(q * 3);
+            var w = new WebGLFloatArray(q * 3);
+            var h = new WebGLFloatArray(q * 2);
+            var a = new WebGLFloatArray(q * 2);
+            var f = new WebGLFloatArray(q * 4);
+            var p = null;
+            var e = null;
+            if (s.Tangents)
+                p = new WebGLFloatArray(q * 3);
+            if (s.Binormals)
+                e = new WebGLFloatArray(q * 3);
+            for (var o = 0; o < q; ++o)
+            {
+                var g = s.Vertices[o];
+                r[o * 3 + 0] = g.Pos.X;
+                r[o * 3 + 1] = g.Pos.Y;
+                r[o * 3 + 2] = g.Pos.Z;
+                w[o * 3 + 0] = g.Normal.X;
+                w[o * 3 + 1] = g.Normal.Y;
+                w[o * 3 + 2] = g.Normal.Z;
+                h[o * 2 + 0] = g.TCoords.X;
+                h[o * 2 + 1] = g.TCoords.Y;
+                a[o * 2 + 0] = g.TCoords2.X;
+                a[o * 2 + 1] = g.TCoords2.Y;
+                f[o * 4 + 0] = CL3D.getRed(g.Color) / 255;
+                f[o * 4 + 1] = CL3D.getGreen(g.Color) / 255;
+                f[o * 4 + 2] = CL3D.getBlue(g.Color) / 255;
+                f[o * 4 + 3] = CL3D.getAlpha(g.Color) / 255;
+            }
+            if (p && e)
+            {
+                for (var o = 0; o < q; ++o)
+                {
+                    var l = s.Tangents[o];
+                    p[o * 3 + 0] = l.X;
+                    p[o * 3 + 1] = l.Y;
+                    p[o * 3 + 2] = l.Z;
+                    var u = s.Binormals[o];
+                    e[o * 3 + 0] = u.X;
+                    e[o * 3 + 1] = u.Y;
+                    e[o * 3 + 2] = u.Z;
+                }
+            }
+            var c = s.Indices.length;
+            var d = new WebGLUnsignedShortArray(c);
+            for (var m = 0; m < c; m += 3)
+            {
+                d[m + 0] = s.Indices[m + 0];
+                d[m + 1] = s.Indices[m + 2];
+                d[m + 2] = s.Indices[m + 1];
+            }
+            k.positionBuffer = n.createBuffer();
+            n.bindBuffer(n.ARRAY_BUFFER, k.positionBuffer);
+            n.bufferData(n.ARRAY_BUFFER, r, n.DYNAMIC_DRAW);
+            k.positionsArray = r;
+            k.texcoordsBuffer = n.createBuffer();
+            n.bindBuffer(n.ARRAY_BUFFER, k.texcoordsBuffer);
+            n.bufferData(n.ARRAY_BUFFER, h, n.STATIC_DRAW);
+            k.texcoordsBuffer2 = n.createBuffer();
+            n.bindBuffer(n.ARRAY_BUFFER, k.texcoordsBuffer2);
+            n.bufferData(n.ARRAY_BUFFER, a, n.STATIC_DRAW);
+            k.normalBuffer = n.createBuffer();
+            n.bindBuffer(n.ARRAY_BUFFER, k.normalBuffer);
+            n.bufferData(n.ARRAY_BUFFER, w, n.STATIC_DRAW);
+            if (p && e)
+            {
+                k.tangentBuffer = n.createBuffer();
+                n.bindBuffer(n.ARRAY_BUFFER, k.tangentBuffer);
+                n.bufferData(n.ARRAY_BUFFER, p, n.STATIC_DRAW);
+                k.binormalBuffer = n.createBuffer();
+                n.bindBuffer(n.ARRAY_BUFFER, k.binormalBuffer);
+                n.bufferData(n.ARRAY_BUFFER, e, n.STATIC_DRAW);
+            }
+            n.bindBuffer(n.ARRAY_BUFFER, null);
+            k.colorBuffer = n.createBuffer();
+            n.bindBuffer(n.ARRAY_BUFFER, k.colorBuffer);
+            n.bufferData(n.ARRAY_BUFFER, f, n.STATIC_DRAW);
+            k.colorArray = f;
+            n.bindBuffer(n.ARRAY_BUFFER, null);
+            k.indexBuffer = n.createBuffer();
+            n.bindBuffer(n.ELEMENT_ARRAY_BUFFER, k.indexBuffer);
+            n.bufferData(n.ELEMENT_ARRAY_BUFFER, d, n.STATIC_DRAW);
+            n.bindBuffer(n.ELEMENT_ARRAY_BUFFER, null);
+            k.gl = n;
+            k.indexCount = c;
+            k.vertexCount = q;
+            s.RendererNativeArray = k;
+            s.OnlyPositionsChanged = false;
+            s.OnlyUpdateBufferIfPossible = false;
+        }
+    }
+
+    function drawWebGlStaticGeometry(g, h)
+    {
+        var e = this.gl;
+        var i = g.tangentBuffer && g.binormalBuffer;
+        e.enableVertexAttribArray(0);
+        e.enableVertexAttribArray(1);
+        e.enableVertexAttribArray(2);
+        e.enableVertexAttribArray(3);
+        e.enableVertexAttribArray(4);
+        e.bindBuffer(e.ARRAY_BUFFER, g.positionBuffer);
+        e.vertexAttribPointer(0, 3, e.FLOAT, false, 0, 0);
+        e.bindBuffer(e.ARRAY_BUFFER, g.texcoordsBuffer);
+        e.vertexAttribPointer(1, 2, e.FLOAT, false, 0, 0);
+        e.bindBuffer(e.ARRAY_BUFFER, g.texcoordsBuffer2);
+        e.vertexAttribPointer(2, 2, e.FLOAT, false, 0, 0);
+        e.bindBuffer(e.ARRAY_BUFFER, g.normalBuffer);
+        e.vertexAttribPointer(3, 3, e.FLOAT, false, 0, 0);
+        e.bindBuffer(e.ARRAY_BUFFER, g.colorBuffer);
+        e.vertexAttribPointer(4, 4, e.FLOAT, false, 0, 0);
+        if (i)
+        {
+            e.enableVertexAttribArray(5);
+            e.enableVertexAttribArray(6);
+            e.bindBuffer(e.ARRAY_BUFFER, g.tangentBuffer);
+            e.vertexAttribPointer(5, 3, e.FLOAT, false, 0, 0);
+            e.bindBuffer(e.ARRAY_BUFFER, g.binormalBuffer);
+            e.vertexAttribPointer(6, 3, e.FLOAT, false, 0, 0);
+        }
+        e.bindBuffer(e.ELEMENT_ARRAY_BUFFER, g.indexBuffer);
+        var j = new CL3D.Matrix4(false);
+        this.Projection.copyTo(j);
+        j = j.multiply(this.View);
+        j = j.multiply(this.World);
+        var d = this.currentGLProgram;
+        if (d.locWorldViewProj != null)
+            e.uniformMatrix4fv(d.locWorldViewProj, false, this.getMatrixAsWebGLFloatArray(j));
+        if (d.locNormalMatrix != null)
+        {
+            var c = new CL3D.Matrix4(true);
+            this.Projection.copyTo(c);
+            c = c.multiply(this.View);
+            c = c.multiply(this.World);
+            c.makeInverse();
+            c = c.getTransposed();
+            e.uniformMatrix4fv(d.locNormalMatrix, false, this.getMatrixAsWebGLFloatArray(c));
+        }
+        if (d.locModelViewMatrix != null)
+        {
+            var f = new CL3D.Matrix4(true);
+            f = f.multiply(this.View);
+            f = f.multiply(this.World);
+            e.uniformMatrix4fv(d.locModelViewMatrix, false, this.getMatrixAsWebGLFloatArray(f));
+        }
+        if (d.locModelWorldMatrix != null)
+            e.uniformMatrix4fv(d.locModelWorldMatrix, false, this.getMatrixAsWebGLFloatArray(this.World.getTransposed()));
+        if (d.locLightPositions != null) this.setDynamicLightsIntoConstants(d, i, i);
+        if (d.locFogColor != null)
+            this.gl.uniform4f(d.locFogColor, this.FogColor.R, this.FogColor.G, this.FogColor.B, 1);
+        if (d.locFogDensity != null)
+            this.gl.uniform1f(d.locFogDensity, this.FogDensity);
+        if (this.ShadowMapEnabled) this.setShadowMapDataIntoConstants(d);
+        if (d.locGrassMovement != null)
+        {
+            var a = ((CL3D.CLTimer.getTime() * this.WindSpeed) / 500) % 1000;
+            this.gl.uniform1f(d.locGrassMovement, a);
+            this.gl.uniform1f(d.locWindStrength, this.WindStrength);
+        }
+        if (h == null) h = g.indexCount;
+        e.drawElements(e.TRIANGLES, h, e.UNSIGNED_SHORT, 0);
+        if (i)
+        {
+            e.disableVertexAttribArray(5);
+            e.disableVertexAttribArray(6);
+        }
+    }
+
+    function setShadowMapDataIntoConstants(b)
+    {
+        var c = this.gl;
+        if (this.ShadowMapLightMatrix && b.locWorldviewprojLight)
+        {
+            var a = new CL3D.Matrix4(true);
+            a = a.multiply(this.ShadowMapLightMatrix);
+            a = a.multiply(this.World);
+            c.uniformMatrix4fv(b.locWorldviewprojLight, false, this.getMatrixAsWebGLFloatArray(a));
+        }
+        if (this.ShadowMapLightMatrix2 && b.locWorldviewprojLight2)
+        {
+            var a = new CL3D.Matrix4(true);
+            a = a.multiply(this.ShadowMapLightMatrix2);
+            a = a.multiply(this.World);
+            c.uniformMatrix4fv(b.locWorldviewprojLight2, false, this.getMatrixAsWebGLFloatArray(a));
+        }
+        if (b.locShadowMapBias1)
+            c.uniform1f(b.locShadowMapBias1, this.ShadowMapBias1);
+        if (b.locShadowMapBias2)
+            c.uniform1f(b.locShadowMapBias2, this.ShadowMapBias2);
+        if (b.locShadowMapBackfaceBias)
+            c.uniform1f(b.locShadowMapBackfaceBias, this.ShadowMapBackfaceBias);
+        if (b.locShadowMapOpacity)
+            c.uniform1f(b.locShadowMapOpacity, this.ShadowMapOpacity);
+        if (this.ShadowMapTexture)
+        {
+            c.activeTexture(c.TEXTURE2);
+            c.bindTexture(c.TEXTURE_2D, this.ShadowMapTexture.Texture);
+        }
+        else
+        {
+            c.activeTexture(c.TEXTURE2);
+            c.bindTexture(c.TEXTURE_2D, null);
+        }
+        c.uniform1i(c.getUniformLocation(b, "shadowmap"), 2);
+        if (CL3D.UseShadowCascade)
+        {
+            if (this.ShadowMapTexture2)
+            {
+                c.activeTexture(c.TEXTURE3);
+                c.bindTexture(c.TEXTURE_2D, this.ShadowMapTexture2.Texture);
+            }
+            else
+            {
+                c.activeTexture(c.TEXTURE3);
+                c.bindTexture(c.TEXTURE_2D, null);
+            }
+            c.uniform1i(c.getUniformLocation(b, "shadowmap2"), 3);
+        }
+    }
+
+    function setDynamicLightsIntoConstants(g, q, a)
+    {
+        var d = new ArrayBuffer(4 * 4 * Float32Array.BYTES_PER_ELEMENT);
+        var j = new WebGLFloatArray(d);
+        var b = new ArrayBuffer(5 * 4 * Float32Array.BYTES_PER_ELEMENT);
+        var n = new WebGLFloatArray(b);
+        var p = new CL3D.Matrix4(true);
+        if (!q && ((this.Lights != null && this.Lights.length > 0) || this.DirectionalLight != null))
+            this.World.getInverse(p);
+        for (var f = 0; f < 4; ++f)
+        {
+            var m = f * 4;
+            if (this.Lights != null && f < this.Lights.length)
+            {
+                var e = this.Lights[f];
+                var o = p.getTransformedVect(e.Position);
+                j[m] = o.X;
+                j[m + 1] = o.Y;
+                j[m + 2] = o.Z;
+                var k = 1;
+                if (a) k = 1 / (e.Radius * e.Radius);
+                else k = e.Attenuation;
+                
+                j[m + 3] = k;
+                n[m] = e.Color.R;
+                n[m + 1] = e.Color.G;
+                n[m + 2] = e.Color.B;
+                n[m + 3] = 1;
+            }
+            else
+            {
+                j[m] = 1;
+                j[m + 1] = 0;
+                j[m + 2] = 0;
+                j[m + 3] = 1;
+                n[m] = 0;
+                n[m + 1] = 0;
+                n[m + 2] = 0;
+                n[m + 3] = 1;
+            }
+        }
+        n[16] = this.AmbientLight.R;
+        n[17] = this.AmbientLight.G;
+        n[18] = this.AmbientLight.B;
+        n[19] = 1;
+        this.gl.uniform4fv(g.locLightPositions, j);
+        this.gl.uniform4fv(g.locLightColors, n);
+        if (g.locDirectionalLight != null) {
+            var h = this.DirectionalLight;
+            var c = null;
+            if (h && h.Direction) c = h.Direction.clone();
+            else c = new CL3D.Vect3d(1, 0, 0);
+            c.multiplyThisWithScal(-1);
+            p.rotateVect(c);
+            c.normalize();
+            this.gl.uniform3f(g.locDirectionalLight, c.X, c.Y, c.Z, 1);
+            if (h)
+                this.gl.uniform4f(g.locDirectionalLightColor, h.Color.R, h.Color.G, h.Color.B, 1);
+            else
+                this.gl.uniform4f(g.locDirectionalLightColor, 0, 0, 0, 1);
+        }
+    };
+
+    function draw3DLine(b, a) {};
+
+    function draw2DRectangle(j, h, a, o, b, e)
+    {
+        if (a <= 0 || o <= 0 || this.width == 0 || this.height == 0)
+            return;
+        
+        var m = true;
+        if (e == null || e == false) m = false;
+        
+        var d = this.gl;
+        d.enableVertexAttribArray(0);
+        d.disableVertexAttribArray(1);
+        d.disableVertexAttribArray(2);
+        d.disableVertexAttribArray(3);
+        d.disableVertexAttribArray(4);
+        h = this.height - h;
+        var n = 2 / this.width;
+        var l = 2 / this.height;
+        j = (j * n) - 1;
+        h = (h * l) - 1;
+        a *= n;
+        o *= l;
+        var g = new WebGLFloatArray(4 * 3);
+        g[0] = j;
+        g[1] = h;
+        g[2] = 0;
+        g[3] = j + a;
+        g[4] = h;
+        g[5] = 0;
+        g[6] = j + a;
+        g[7] = h - o;
+        g[8] = 0;
+        g[9] = j;
+        g[10] = h - o;
+        g[11] = 0;
+        var i = 6;
+        var k = new WebGLUnsignedShortArray(i);
+        k[0] = 0;
+        k[1] = 2;
+        k[2] = 1;
+        k[3] = 0;
+        k[4] = 3;
+        k[5] = 2;
+        var f = d.createBuffer();
+        d.bindBuffer(d.ARRAY_BUFFER, f);
+        d.bufferData(d.ARRAY_BUFFER, g, d.STATIC_DRAW);
+        d.vertexAttribPointer(0, 3, d.FLOAT, false, 0, 0);
+        var c = d.createBuffer();
+        d.bindBuffer(d.ELEMENT_ARRAY_BUFFER, c);
+        d.bufferData(d.ELEMENT_ARRAY_BUFFER, k, d.STATIC_DRAW);
+        this.currentGLProgram = this.Program2DDrawingColorOnly;
+        d.useProgram(this.currentGLProgram);
+        d.uniform4f(d.getUniformLocation(this.currentGLProgram, "vColor"), CL3D.getRed(b) / 255, CL3D.getGreen(b) / 255, CL3D.getBlue(b) / 255, m ? (CL3D.getAlpha(b) / 255) : 1);
+        d.depthMask(false);
+        d.disable(d.DEPTH_TEST);
+        if (!m) d.disable(d.BLEND);
+        else
+        {
+            d.enable(d.BLEND);
+            d.blendFunc(d.SRC_ALPHA, d.ONE_MINUS_SRC_ALPHA);
+        }
+        d.drawElements(d.TRIANGLES, i, d.UNSIGNED_SHORT, 0);
+        d.deleteBuffer(f);
+        d.deleteBuffer(c);
+    }
+
+    function draw2DImage(h, g, m, l, t, o, u, k, d, j)
+    {
+        if (t == null || t.isLoaded() == false || m <= 0 || l <= 0 || this.width == 0 || this.height == 0)
+            return;
+        
+        if (k == null) k = 1;
+        if (d == null) d = 1;
+        var f = true;
+        if (o == null || o == false) f = false;
+        var p = this.gl;
+        p.enableVertexAttribArray(0);
+        p.enableVertexAttribArray(1);
+        p.disableVertexAttribArray(2);
+        p.disableVertexAttribArray(3);
+        p.disableVertexAttribArray(4);
+        g = this.height - g;
+        var e = 2 / this.width;
+        var s = 2 / this.height;
+        h = (h * e) - 1;
+        g = (g * s) - 1;
+        m *= e;
+        l *= s;
+        var q = new WebGLFloatArray(4 * 3);
+        q[0] = h;
+        q[1] = g;
+        q[2] = 0;
+        q[3] = h + m;
+        q[4] = g;
+        q[5] = 0;
+        q[6] = h + m;
+        q[7] = g - l;
+        q[8] = 0;
+        q[9] = h;
+        q[10] = g - l;
+        q[11] = 0;
+        var i = new WebGLFloatArray(4 * 2);
+        i[0] = 0;
+        i[1] = 0;
+        i[2] = k;
+        i[3] = 0;
+        i[4] = k;
+        i[5] = d;
+        i[6] = 0;
+        i[7] = d;
+        var a = 6;
+        var b = new WebGLUnsignedShortArray(a);
+        b[0] = 0;
+        b[1] = 2;
+        b[2] = 1;
+        b[3] = 0;
+        b[4] = 3;
+        b[5] = 2;
+        var n = p.createBuffer();
+        p.bindBuffer(p.ARRAY_BUFFER, n);
+        p.bufferData(p.ARRAY_BUFFER, q, p.STATIC_DRAW);
+        p.vertexAttribPointer(0, 3, p.FLOAT, false, 0, 0);
+        var r = p.createBuffer();
+        p.bindBuffer(p.ARRAY_BUFFER, r);
+        p.bufferData(p.ARRAY_BUFFER, i, p.STATIC_DRAW);
+        p.vertexAttribPointer(1, 2, p.FLOAT, false, 0, 0);
+        var c = p.createBuffer();
+        p.bindBuffer(p.ELEMENT_ARRAY_BUFFER, c);
+        p.bufferData(p.ELEMENT_ARRAY_BUFFER, b, p.STATIC_DRAW);
+        if (u == null)
+            this.currentGLProgram = this.Program2DDrawingTextureOnly;
+        else
+            this.currentGLProgram = u;
+        p.useProgram(this.currentGLProgram);
+        p.depthMask(false);
+        p.disable(p.DEPTH_TEST);
+        if (!f) p.disable(p.BLEND);
+        else
+        {
+            p.enable(p.BLEND);
+            p.blendFunc(p.SRC_ALPHA, p.ONE_MINUS_SRC_ALPHA);
+        }
+        p.activeTexture(p.TEXTURE0);
+        p.bindTexture(p.TEXTURE_2D, t.getWebGLTexture());
+        if (j)
+        {
+            p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MAG_FILTER, p.NEAREST);
+            p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MIN_FILTER, p.NEAREST);
+        }
+        else
+        {
+            p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MAG_FILTER, p.LINEAR);
+            p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MIN_FILTER, p.LINEAR);
+        }
+        p.texParameteri(p.TEXTURE_2D, p.TEXTURE_WRAP_S, p.CLAMP_TO_EDGE);
+        p.texParameteri(p.TEXTURE_2D, p.TEXTURE_WRAP_T, p.CLAMP_TO_EDGE);
+        p.activeTexture(p.TEXTURE1);
+        p.bindTexture(p.TEXTURE_2D, null);
+        p.drawElements(p.TRIANGLES, a, p.UNSIGNED_SHORT, 0);
+        p.deleteBuffer(r);
+        p.deleteBuffer(n);
+        p.deleteBuffer(c);
+        p.activeTexture(p.TEXTURE0);
+        p.bindTexture(p.TEXTURE_2D, t.getWebGLTexture());
+        p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MAG_FILTER, p.LINEAR);
+        p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MIN_FILTER, p.LINEAR_MIPMAP_NEAREST);
+    }
+
+    CL3D.Renderer.prototype.draw2DFontImage = function(b, h, e, a, d, c) {
+        if (d == null || d.isLoaded() == false || e <= 0 || a <= 0 || this.width == 0 || this.height == 0) {
+            return
+        }
+        var g = true;
+        var f = this.gl;
+        this.currentGLProgram = this.Program2DDrawingCanvasFontColor;
+        f.useProgram(this.currentGLProgram);
+        f.uniform4f(f.getUniformLocation(this.currentGLProgram, "vColor"), CL3D.getRed(c) / 255, CL3D.getGreen(c) / 255, CL3D.getBlue(c) / 255, g ? (CL3D.getAlpha(c) / 255) : 1);
+        this.draw2DImage(b, h, e, a, d, g, this.Program2DDrawingCanvasFontColor, d.OriginalWidth / d.CachedWidth, d.OriginalHeight / d.CachedHeight, true);
+    }
+
+    function beginScene(a)
+    {
+        if (this.gl == null) return;
+        this.ensuresizeok();
+        var b = this.gl;
+        b.clearDepth(this.InvertedDepthTest ? 0 : 1);
+        b.depthMask(true);
+        b.clearColor(CL3D.getRed(a) / 255, CL3D.getGreen(a) / 255, CL3D.getBlue(a) / 255, 1);
+        b.clear(b.COLOR_BUFFER_BIT | b.DEPTH_BUFFER_BIT);
+    }
+
+    function clearZBuffer()
+    {
+        var a = this.gl;
+        a.clearDepth(this.InvertedDepthTest ? 0 : 1);
+        a.depthMask(true);
+        a.clear(a.DEPTH_BUFFER_BIT);
+    }
+
+    function endScene()
+    {
+        if (this.gl == null) return;
+        var a = this.gl;
+        a.flush();
+    }
+
+    function clearDynamicLights()
+    {
+        this.Lights = new Array();
+        this.DirectionalLight = null;
+    }
+
+    function addDynamicLight(a)
+    {
+        this.Lights.push(a);
+    }
+
+    function setDirectionalLight(a)
+    {
+        this.DirectionalLight = a;
+    }
+
+    function ensuresizeok()
+    {
+        if (this.canvas == null || this.gl == null)
+            return;
+        if (this.width == this.canvas.width && this.height == this.canvas.height)
+            return;
+        this.width = this.canvas.width;
+        this.height = this.canvas.height;
+        var a = this.gl;
+        if (a.viewport) a.viewport(0, 0, this.width, this.height);
+    }
+
+    function init(a)
+    {
+        this.canvas = a;
+        this.gl = null;
+        try
+        {
+            var d = [];
+            d.push("webgl2");
+            d.push("webgl");
+            d.push("experimental-webgl");
+            d.push("moz-webgl");
+            d.push("webkit-3d");
+            d.push("3d");
+            for (var b = 0; b < d.length; b++)
+            {
+                try
+                {
+                    this.gl = this.canvas.getContext(d[b], %["alpha" => false]);
+                    if (this.gl != null)
+                    {
+                        if (d[b] == "webgl2") this.UsesWebGL2 = true;
+                        break;
+                    }
+                } catch (c) {}
+            }
+        } catch (c) {}
+        if (this.gl == null) return false;
+        else
+        {
+            this.removeCompatibilityProblems();
+            this.initWebGL();
+            this.ensuresizeok();
+        }
+        return true;
+    }
+
+    function removeCompatibilityProblems()
+    {
+        if (typeof WebGLFloatArray == "undefined" && typeof Float32Array != "undefined")
+        {
+            try
+            {
+                WebGLFloatArray = Float32Array;
+                WebGLUnsignedShortArray = Uint16Array;
+            }
+            catch (a)
+                CL3D.gCCDebugOutput.printError("Error: Float32 array types for webgl not found.");
+        }
+        if (typeof WebGLFloatArray == "undefined" && typeof CanvasFloatArray != "undefined")
+        {
+            try
+            {
+                WebGLFloatArray = CanvasFloatArray;
+                WebGLUnsignedShortArray = CanvasUnsignedShortArray;
+            }
+            catch (a)
+                CL3D.gCCDebugOutput.printError("Error: canvas array types for webgl not found.");
+        }
+        var b = this.gl;
+        if (!b.getProgramParameter) b.getProgramParameter = b.getProgrami;
+        if (!b.getShaderParameter) b.getShaderParameter = b.getShaderi;
+    }
+
+    function loadShader(e, f)
+    {
+        var d = this.gl;
+        var a = d.createShader(e);
+        if (a == null) return null;
+        d.shaderSource(a, f);
+        d.compileShader(a);
+        if (!d.getShaderParameter(a, d.COMPILE_STATUS))
+        {
+            if (this.printShaderErrors)
+            {
+                var b = (e == d.VERTEX_SHADER) ? "vertex" : "fragment";
+                var c = "Error loading " + b + " shader: " + d.getShaderInfoLog(a);
+                if (CL3D.gCCDebugOutput) CL3D.gCCDebugOutput.printError(c);
+            }
+            return null;
+        }
+        return a;
+    }
+
+    function createShaderProgram(b, f, j)
+    {
+        var e = this.gl;
+        var a = b;
+        var i = f;
+        var g =
+        "
+            #ifdef GL_ES
+            precision mediump float;
+            #endif
+        ";
+        if (a.indexOf("precision ") == -1) a = g + b;
+        if (i.indexOf("precision ") == -1) i = g + f;
+        var h = this.loadShader(e.VERTEX_SHADER, a);
+        var c = this.loadShader(e.FRAGMENT_SHADER, i);
+        if (!h || !c)
+        {
+            if (this.printShaderErrors)
+                CL3D.gCCDebugOutput.print("Could not create shader program");
+            return null;
+        }
+        var d = e.createProgram();
+        e.attachShader(d, h);
+        e.attachShader(d, c);
+        e.bindAttribLocation(d, 0, "vPosition");
+        e.bindAttribLocation(d, 1, "vTexCoord1");
+        e.bindAttribLocation(d, 2, "vTexCoord2");
+        e.bindAttribLocation(d, 3, "vNormal");
+        e.bindAttribLocation(d, 4, "vColor");
+        if (j)
+        {
+            e.bindAttribLocation(d, 5, "vBinormal");
+            e.bindAttribLocation(d, 6, "vTangent");
+        }
+        e.linkProgram(d);
+        if (!e.getProgramParameter(d, e.LINK_STATUS))
+        {
+            if (this.printShaderErrors)
+                CL3D.gCCDebugOutput.print("Could not link program:" + e.getProgramInfoLog(d));
+        }
+        else
+        {
+            e.useProgram(d);
+            e.uniform1i(e.getUniformLocation(d, "texture1"), 0);
+            e.uniform1i(e.getUniformLocation(d, "texture2"), 1);
+        }
+        return d;
+    }
+
+    function createMaterialType(c, b, g, e, f, d)
+    {
+        var a = this.createMaterialTypeInternal(c, b, g, e, f);
+        if (!a) return -1;
+        a.shaderCallback = d;
+        this.MinExternalMaterialTypeId += 1;
+        this.MaterialPrograms[this.MinExternalMaterialTypeId] = a;
+        this.MaterialProgramsWithLight[this.MinExternalMaterialTypeId] = a;
+        this.MaterialProgramsFog[this.MinExternalMaterialTypeId] = a;
+        this.MaterialProgramsWithLightFog[this.MinExternalMaterialTypeId] = a;
+        this.MaterialProgramsWithShadowMap[this.MinExternalMaterialTypeId] = a;
+        return this.MinExternalMaterialTypeId;
+    }
+
+    function getGLProgramFromMaterialType(a)
+    {
+        var b = null;
+        try b = this.MaterialPrograms[a];
+        catch (c) {}
+        return b;
+    }
+
+    function createMaterialTypeInternal(a, e, h, d, f, c)
+    {
+        if (c == null) c = false;
+        var b = this.createShaderProgram(a, e, c);
+        if (b)
+        {
+            b.blendenabled = h ? h : false;
+            b.blendsfactor = d;
+            b.blenddfactor = f;
+            var g = this.gl;
+            b.locWorldViewProj = g.getUniformLocation(b, "worldviewproj");
+            b.locNormalMatrix = g.getUniformLocation(b, "normaltransform");
+            b.locModelViewMatrix = g.getUniformLocation(b, "modelviewtransform");
+            b.locModelWorldMatrix = g.getUniformLocation(b, "worldtransform");
+            b.locLightPositions = g.getUniformLocation(b, "arrLightPositions");
+            b.locLightColors = g.getUniformLocation(b, "arrLightColors");
+            b.locDirectionalLight = g.getUniformLocation(b, "vecDirLight");
+            b.locDirectionalLightColor = g.getUniformLocation(b, "colorDirLight");
+            b.locFogColor = g.getUniformLocation(b, "fogColor");
+            b.locFogDensity = g.getUniformLocation(b, "fogDensity");
+            b.locGrassMovement = g.getUniformLocation(b, "grassMovement");
+            b.locWindStrength = g.getUniformLocation(b, "windStrength");
+            b.locWorldviewprojLight = g.getUniformLocation(b, "worldviewprojLight");
+            b.locWorldviewprojLight2 = g.getUniformLocation(b, "worldviewprojLight2");
+            b.locShadowMapBias1 = g.getUniformLocation(b, "shadowMapBias1");
+            b.locShadowMapBias2 = g.getUniformLocation(b, "shadowMapBias2");
+            b.locShadowMapBackfaceBias = g.getUniformLocation(b, "shadowMapBackFaceBias");
+            b.locShadowMapOpacity = g.getUniformLocation(b, "shadowOpacity");
+            b.shaderCallback = null;
+        }
+        return b;
+    }
+
+    function initWebGL()
+    {
+        var y = this.gl;
+        this.printShaderErrors = true;
+        var o = this.createMaterialTypeInternal(this.vs_shader_normaltransform, this.fs_shader_onlyfirsttexture_gouraud);
+        var c = o;
+        var C = this.createMaterialTypeInternal(this.vs_shader_normaltransform, this.fs_shader_lightmapcombine);
+        var r = this.createMaterialTypeInternal(this.vs_shader_normaltransform, this.fs_shader_lightmapcombine_m4);
+        var a = this.createMaterialTypeInternal(this.vs_shader_normaltransform, this.fs_shader_onlyfirsttexture_gouraud, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        var t = this.createMaterialTypeInternal(this.vs_shader_normaltransform, this.fs_shader_onlyfirsttexture_gouraud_alpharef, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        var A = this.createMaterialTypeInternal(this.vs_shader_normaltransform_movegrass, this.fs_shader_onlyfirsttexture_gouraud_alpharef, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        var h = this.createMaterialTypeInternal(this.vs_shader_normaltransform, this.fs_shader_onlyfirsttexture_gouraud, true, y.ONE, y.ONE_MINUS_SRC_COLOR);
+        var b = this.createMaterialTypeInternal(this.vs_shader_reflectiontransform, this.fs_shader_lightmapcombine);
+        var d = this.createMaterialTypeInternal(this.vs_shader_reflectiontransform, this.fs_shader_lightmapcombine, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        var w = this.createMaterialTypeInternal(this.vs_shader_normaltransform_gouraud, this.fs_shader_onlyfirsttexture_gouraud);
+        var m = this.createMaterialTypeInternal(this.vs_shader_normalmappedtransform, this.fs_shader_normalmapped);
+        var j = this.createMaterialTypeInternal(this.vs_shader_normaltransform, this.fs_shader_vertex_alpha_two_textureblend);
+        this.Program2DDrawingColorOnly = this.createMaterialTypeInternal(this.vs_shader_2ddrawing_coloronly, this.fs_shader_simplecolor);
+        this.Program2DDrawingTextureOnly = this.createMaterialTypeInternal(this.vs_shader_2ddrawing_texture, this.fs_shader_onlyfirsttexture);
+        this.Program2DDrawingCanvasFontColor = this.createMaterialTypeInternal(this.vs_shader_2ddrawing_texture, this.fs_shader_2ddrawing_canvasfont);
+        this.MaterialPrograms[CL3D.Material.EMT_SOLID] = c;
+        this.MaterialPrograms[CL3D.Material.EMT_SOLID + 1] = c;
+        this.MaterialPrograms[CL3D.Material.EMT_LIGHTMAP] = C;
+        this.MaterialPrograms[CL3D.Material.EMT_LIGHTMAP + 1] = C;
+        this.MaterialPrograms[CL3D.Material.EMT_LIGHTMAP + 2] = C;
+        this.MaterialPrograms[CL3D.Material.EMT_LIGHTMAP + 3] = r;
+        this.MaterialPrograms[CL3D.Material.EMT_TRANSPARENT_ADD_COLOR] = h;
+        this.MaterialPrograms[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL] = a;
+        this.MaterialPrograms[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF] = t;
+        this.MaterialPrograms[CL3D.Material.EMT_REFLECTION_2_LAYER] = b;
+        this.MaterialPrograms[CL3D.Material.EMT_TRANSPARENT_REFLECTION_2_LAYER] = d;
+        this.MaterialPrograms[CL3D.Material.EMT_NORMAL_MAP_SOLID] = m;
+        this.MaterialPrograms[CL3D.Material.EMT_SOLID_VERTEX_ALPHA_TWO_TEXTURE_BLEND] = j;
+        this.MaterialPrograms[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF_MOVING_GRASS] = A;
+        this.MaterialPrograms[23] = w;
+        c = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_light, this.fs_shader_onlyfirsttexture_gouraud);
+        a = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_light, this.fs_shader_onlyfirsttexture_gouraud, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        t = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_light, this.fs_shader_onlyfirsttexture_gouraud_alpharef, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        A = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_light_movegrass, this.fs_shader_onlyfirsttexture_gouraud_alpharef, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        h = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_light, this.fs_shader_onlyfirsttexture_gouraud, true, y.ONE, y.ONE_MINUS_SRC_COLOR);
+        b = this.createMaterialTypeInternal(this.vs_shader_reflectiontransform_with_light, this.fs_shader_lightmapcombine_gouraud);
+        d = this.createMaterialTypeInternal(this.vs_shader_reflectiontransform_with_light, this.fs_shader_lightmapcombine_gouraud, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        j = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_light, this.fs_shader_vertex_alpha_two_textureblend);
+        this.MaterialProgramsWithLight[CL3D.Material.EMT_SOLID] = c;
+        this.MaterialProgramsWithLight[CL3D.Material.EMT_SOLID + 1] = c;
+        this.MaterialProgramsWithLight[CL3D.Material.EMT_LIGHTMAP] = C;
+        this.MaterialProgramsWithLight[CL3D.Material.EMT_LIGHTMAP + 1] = C;
+        this.MaterialProgramsWithLight[CL3D.Material.EMT_LIGHTMAP + 2] = C;
+        this.MaterialProgramsWithLight[CL3D.Material.EMT_LIGHTMAP + 3] = r;
+        this.MaterialProgramsWithLight[CL3D.Material.EMT_TRANSPARENT_ADD_COLOR] = h;
+        this.MaterialProgramsWithLight[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL] = a;
+        this.MaterialProgramsWithLight[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF] = t;
+        this.MaterialProgramsWithLight[CL3D.Material.EMT_REFLECTION_2_LAYER] = b;
+        this.MaterialProgramsWithLight[CL3D.Material.EMT_TRANSPARENT_REFLECTION_2_LAYER] = d;
+        this.MaterialProgramsWithLight[CL3D.Material.EMT_NORMAL_MAP_SOLID] = m;
+        this.MaterialProgramsWithLight[CL3D.Material.EMT_SOLID_VERTEX_ALPHA_TWO_TEXTURE_BLEND] = j;
+        this.MaterialProgramsWithLight[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF_MOVING_GRASS] = A;
+        var n = this.createMaterialTypeInternal(this.vs_shader_normaltransform, this.fs_shader_onlyfirsttexture_gouraud_fog);
+        var k = this.createMaterialTypeInternal(this.vs_shader_normaltransform, this.fs_shader_lightmapcombine_fog);
+        var s = this.createMaterialTypeInternal(this.vs_shader_normaltransform, this.fs_shader_lightmapcombine_m4_fog);
+        var l = this.createMaterialTypeInternal(this.vs_shader_normaltransform, this.fs_shader_onlyfirsttexture_gouraud_fog, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        var v = this.createMaterialTypeInternal(this.vs_shader_normaltransform, this.fs_shader_onlyfirsttexture_gouraud_alpharef_fog, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        var B = this.createMaterialTypeInternal(this.vs_shader_normaltransform_movegrass, this.fs_shader_onlyfirsttexture_gouraud_alpharef_fog, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        var g = this.createMaterialTypeInternal(this.vs_shader_normaltransform, this.fs_shader_onlyfirsttexture_gouraud_fog, true, y.ONE, y.ONE_MINUS_SRC_COLOR);
+        var u = this.createMaterialTypeInternal(this.vs_shader_reflectiontransform, this.fs_shader_lightmapcombine_fog);
+        var e = this.createMaterialTypeInternal(this.vs_shader_reflectiontransform, this.fs_shader_lightmapcombine_fog, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        var q = this.createMaterialTypeInternal(this.vs_shader_normaltransform_gouraud, this.fs_shader_onlyfirsttexture_gouraud_fog);
+        var p = this.createMaterialTypeInternal(this.vs_shader_normalmappedtransform, this.fs_shader_normalmapped);
+        var x = this.createMaterialTypeInternal(this.vs_shader_normaltransform, this.fs_shader_vertex_alpha_two_textureblend_fog);
+        this.MaterialProgramsFog[CL3D.Material.EMT_SOLID] = n;
+        this.MaterialProgramsFog[CL3D.Material.EMT_SOLID + 1] = n;
+        this.MaterialProgramsFog[CL3D.Material.EMT_LIGHTMAP] = k;
+        this.MaterialProgramsFog[CL3D.Material.EMT_LIGHTMAP + 1] = k;
+        this.MaterialProgramsFog[CL3D.Material.EMT_LIGHTMAP + 2] = k;
+        this.MaterialProgramsFog[CL3D.Material.EMT_LIGHTMAP + 3] = s;
+        this.MaterialProgramsFog[CL3D.Material.EMT_TRANSPARENT_ADD_COLOR] = g;
+        this.MaterialProgramsFog[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL] = l;
+        this.MaterialProgramsFog[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF] = v;
+        this.MaterialProgramsFog[CL3D.Material.EMT_REFLECTION_2_LAYER] = u;
+        this.MaterialProgramsFog[CL3D.Material.EMT_TRANSPARENT_REFLECTION_2_LAYER] = e;
+        this.MaterialProgramsFog[CL3D.Material.EMT_NORMAL_MAP_SOLID] = p;
+        this.MaterialProgramsFog[CL3D.Material.EMT_SOLID_VERTEX_ALPHA_TWO_TEXTURE_BLEND] = x;
+        this.MaterialProgramsFog[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF_MOVING_GRASS] = B;
+        this.MaterialProgramsFog[23] = q;
+        n = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_light, this.fs_shader_onlyfirsttexture_gouraud_fog);
+        l = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_light, this.fs_shader_onlyfirsttexture_gouraud_fog, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        v = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_light, this.fs_shader_onlyfirsttexture_gouraud_alpharef_fog, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        B = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_light_movegrass, this.fs_shader_onlyfirsttexture_gouraud_alpharef_fog, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        g = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_light, this.fs_shader_onlyfirsttexture_gouraud_fog, true, y.ONE, y.ONE_MINUS_SRC_COLOR);
+        u = this.createMaterialTypeInternal(this.vs_shader_reflectiontransform_with_light, this.fs_shader_lightmapcombine_gouraud_fog);
+        e = this.createMaterialTypeInternal(this.vs_shader_reflectiontransform_with_light, this.fs_shader_lightmapcombine_gouraud_fog, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        x = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_light, this.fs_shader_vertex_alpha_two_textureblend_fog);
+        this.MaterialProgramsWithLightFog[CL3D.Material.EMT_SOLID] = n;
+        this.MaterialProgramsWithLightFog[CL3D.Material.EMT_SOLID + 1] = n;
+        this.MaterialProgramsWithLightFog[CL3D.Material.EMT_LIGHTMAP] = k;
+        this.MaterialProgramsWithLightFog[CL3D.Material.EMT_LIGHTMAP + 1] = k;
+        this.MaterialProgramsWithLightFog[CL3D.Material.EMT_LIGHTMAP + 2] = k;
+        this.MaterialProgramsWithLightFog[CL3D.Material.EMT_LIGHTMAP + 3] = s;
+        this.MaterialProgramsWithLightFog[CL3D.Material.EMT_TRANSPARENT_ADD_COLOR] = g;
+        this.MaterialProgramsWithLightFog[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL] = l;
+        this.MaterialProgramsWithLightFog[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF] = v;
+        this.MaterialProgramsWithLightFog[CL3D.Material.EMT_REFLECTION_2_LAYER] = u;
+        this.MaterialProgramsWithLightFog[CL3D.Material.EMT_TRANSPARENT_REFLECTION_2_LAYER] = e;
+        this.MaterialProgramsWithLightFog[CL3D.Material.EMT_NORMAL_MAP_SOLID] = p;
+        this.MaterialProgramsWithLightFog[CL3D.Material.EMT_SOLID_VERTEX_ALPHA_TWO_TEXTURE_BLEND] = x;
+        this.MaterialProgramsWithLightFog[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF_MOVING_GRASS] = B;
+        var i = this.ShadowMapUsesRGBPacking ? this.fs_shader_onlyfirsttexture_gouraud_fog_shadow_map_rgbpack : this.fs_shader_onlyfirsttexture_gouraud_fog_shadow_map;
+        n = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_shadowmap_lookup, i);
+        l = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_shadowmap_lookup, i, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        v = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_shadowmap_lookup, this.fs_shader_onlyfirsttexture_gouraud_alpharef_fog_shadow_map, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        B = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_light_movegrass_with_shadowmap_lookup, this.fs_shader_onlyfirsttexture_gouraud_alpharef_fog_shadow_map, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        g = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_shadowmap_lookup, i, true, y.ONE, y.ONE_MINUS_SRC_COLOR);
+        u = this.createMaterialTypeInternal(this.vs_shader_reflectiontransform_with_light, this.fs_shader_lightmapcombine_gouraud_fog);
+        e = this.createMaterialTypeInternal(this.vs_shader_reflectiontransform_with_light, this.fs_shader_lightmapcombine_gouraud_fog, true, y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        x = this.createMaterialTypeInternal(this.vs_shader_normaltransform_with_shadowmap_lookup, this.fs_shader_vertex_alpha_two_textureblend_fog_shadow_map);
+        this.MaterialProgramsWithShadowMap[CL3D.Material.EMT_SOLID] = n;
+        this.MaterialProgramsWithShadowMap[CL3D.Material.EMT_SOLID + 1] = n;
+        this.MaterialProgramsWithShadowMap[CL3D.Material.EMT_LIGHTMAP] = k;
+        this.MaterialProgramsWithShadowMap[CL3D.Material.EMT_LIGHTMAP + 1] = k;
+        this.MaterialProgramsWithShadowMap[CL3D.Material.EMT_LIGHTMAP + 2] = k;
+        this.MaterialProgramsWithShadowMap[CL3D.Material.EMT_LIGHTMAP + 3] = s;
+        this.MaterialProgramsWithShadowMap[CL3D.Material.EMT_TRANSPARENT_ADD_COLOR] = g;
+        this.MaterialProgramsWithShadowMap[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL] = l;
+        this.MaterialProgramsWithShadowMap[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF] = v;
+        this.MaterialProgramsWithShadowMap[CL3D.Material.EMT_REFLECTION_2_LAYER] = u;
+        this.MaterialProgramsWithShadowMap[CL3D.Material.EMT_TRANSPARENT_REFLECTION_2_LAYER] = e;
+        this.MaterialProgramsWithShadowMap[CL3D.Material.EMT_NORMAL_MAP_SOLID] = p;
+        this.MaterialProgramsWithShadowMap[CL3D.Material.EMT_SOLID_VERTEX_ALPHA_TWO_TEXTURE_BLEND] = x;
+        this.MaterialProgramsWithShadowMap[CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF_MOVING_GRASS] = B;
+        this.printShaderErrors = true;
+        for (var z = 0; z < this.MinExternalMaterialTypeId; ++z)
+        {
+            if (this.MaterialPrograms[z] == null)
+                this.MaterialPrograms[z] = o;
+            if (this.MaterialProgramsWithLight[z] == null)
+                this.MaterialProgramsWithLight[z] = o;
+            if (this.MaterialProgramsFog[z] == null)
+                this.MaterialProgramsFog[z] = o;
+            if (this.MaterialProgramsWithLightFog[z] == null)
+                this.MaterialProgramsWithLightFog[z] = o;
+            if (this.MaterialProgramsWithShadowMap[z] == null)
+                this.MaterialProgramsWithShadowMap[z] = o;
+        }
+        y.useProgram(c);
+        this.currentGLProgram = c;
+        y.clearColor(0, 0, 1, 1);
+        y.clearDepth(1);
+        y.depthMask(true);
+        y.enable(y.DEPTH_TEST);
+        y.disable(y.BLEND);
+        y.blendFunc(y.SRC_ALPHA, y.ONE_MINUS_SRC_ALPHA);
+        y.enable(y.CULL_FACE);
+        y.cullFace(y.BACK);
+    }
+
+    function setProjection(a)
+    {
+        a.copyTo(this.Projection);
+    }
+
+    function getProjection()
+    {
+        return this.Projection;
+    }
+
+    function setView(a)
+    {
+        a.copyTo(this.View);
+    };
+
+    function getView()
+    {
+        return this.View;
+    }
+
+    function getWorld()
+    {
+        return this.World;
+    }
+
+    function setWorld(a)
+    {
+        if (a) a.copyTo(this.World);
+    }
+
+    function getMatrixAsWebGLFloatArray(a)
+    {
+        return new WebGLFloatArray(a.asArray());
+    }
+
+    function findTexture(a)
+    {
+        return this.TheTextureManager.getTextureFromName(a);
+    }
+
+    function deleteTexture(a) 
+    {
+        if (a == null) return;
+        var b = this.gl;
+        b.deleteTexture(a.getWebGLTexture());
+        a.Texture = null;
+        a.Loaded = false;
+        if (a.RTTFrameBuffer)
+            b.deleteFramebuffer(a.RTTFrameBuffer);
+        this.TheTextureManager.removeTexture(a);
+        a.RTTFrameBuffer = null;
+    }
+
+    function addRenderTargetTexture(k, j, a, g, l)
+    {
+        var h = this.gl;
+        if (a)
+        {
+            if (!this.UsesWebGL2)
+            {
+                var d = h.getExtension("OES_texture_float");
+                if (!d) return null;
+                this.ExtFloat = d;
+                var e = h.getExtension("OES_texture_float_linear");
+                if (!e) return null;
+                this.ExtFloatLinear = e;
+            }
+            else
+            {
+                d = h.getExtension("EXT_color_buffer_float");
+                if (!d) return null;
+                this.ExtFloat2 = d;
+                d = h.getExtension("OES_texture_float_linear");
+                if (!d) return null;
+                this.ExtFloatLinear = d;
+            }
+        }
+        if (g && !this.UsesWebGL2)
+        {
+            var d = h.getExtension("WEBGL_depth_texture");
+            if (!d) return null;
+            this.ExtDepth = d;
+        }
+        var i = h.createTexture();
+        h.bindTexture(h.TEXTURE_2D, i);
+        var c = false;
+        if (c)
+        {
+            h.texParameteri(h.TEXTURE_2D, h.TEXTURE_MAG_FILTER, h.LINEAR);
+            h.texParameteri(h.TEXTURE_2D, h.TEXTURE_MIN_FILTER, h.LINEAR_MIPMAP_NEAREST);
+            h.generateMipmap(h.TEXTURE_2D);
+        }
+        else
+        {
+            h.texParameteri(h.TEXTURE_2D, h.TEXTURE_MAG_FILTER, h.LINEAR);
+            h.texParameteri(h.TEXTURE_2D, h.TEXTURE_MIN_FILTER, h.LINEAR);
+        }
+        if (g)
+            h.texImage2D(h.TEXTURE_2D, 0, h.DEPTH_COMPONENT, k, j, 0, h.DEPTH_COMPONENT, h.UNSIGNED_SHORT, null);
+        else
+        {
+            if (a)
+            {
+                if (this.UsesWebGL2)
+                    h.texStorage2D(h.TEXTURE_2D, 1, h.RGBA32F, k, j);
+                else
+                    h.texImage2D(h.TEXTURE_2D, 0, h.RGBA, k, j, 0, h.RGBA, h.FLOAT, null);
+            }
+            else
+                h.texImage2D(h.TEXTURE_2D, 0, h.RGBA, k, j, 0, h.RGBA, h.UNSIGNED_BYTE, null);
+        }
+        var f = h.createFramebuffer();
+        h.bindFramebuffer(h.FRAMEBUFFER, f);
+        f.width = k;
+        f.height = j;
+        if (g)
+            h.framebufferTexture2D(h.FRAMEBUFFER, h.DEPTH_ATTACHMENT, h.TEXTURE_2D, i, 0);
+        else
+        {
+            var n = h.createRenderbuffer();
+            h.bindRenderbuffer(h.RENDERBUFFER, n);
+            h.renderbufferStorage(h.RENDERBUFFER, h.DEPTH_COMPONENT16, k, j);
+            h.framebufferTexture2D(h.FRAMEBUFFER, h.COLOR_ATTACHMENT0, h.TEXTURE_2D, i, 0);
+            h.framebufferRenderbuffer(h.FRAMEBUFFER, h.DEPTH_ATTACHMENT, h.RENDERBUFFER, n)
+        }
+        if (a)
+        {
+            var b = h.checkFramebufferStatus(h.FRAMEBUFFER);
+            if (b != h.FRAMEBUFFER_COMPLETE)
+            {
+                h.bindTexture(h.TEXTURE_2D, null);
+                h.bindRenderbuffer(h.RENDERBUFFER, null);
+                h.bindFramebuffer(h.FRAMEBUFFER, null);
+                return null;
+            }
+        }
+        h.bindTexture(h.TEXTURE_2D, null);
+        h.bindRenderbuffer(h.RENDERBUFFER, null);
+        h.bindFramebuffer(h.FRAMEBUFFER, null);
+        var m = new CL3D.Texture();
+        m.Name = "";
+        m.Texture = i;
+        m.Image = null;
+        m.Loaded = true;
+        m.CachedWidth = k;
+        m.CachedHeight = j;
+        m.OriginalWidth = k;
+        m.OriginalHeight = j;
+        m.RTTFrameBuffer = f;
+        m.IsFloatingPoint = a;
+        if (l != null)
+        {
+            m.Name = l;
+            this.TheTextureManager.addTexture(m);
+        }
+        return m;
+    }
+
+    function setRenderTarget(e, d, c, b)
+    {
+        var f = this.gl;
+        if (e != null)
+        {
+            f.bindFramebuffer(f.FRAMEBUFFER, e.RTTFrameBuffer);
+            f.viewport(0, 0, e.CachedWidth, e.CachedHeight);
+        }
+        else
+        {
+            f.bindFramebuffer(f.FRAMEBUFFER, null);
+            f.viewport(0, 0, this.width, this.height);
+        }
+        if (this.CurrentRenderTarget != null)
+        {
+            f.bindTexture(f.TEXTURE_2D, this.CurrentRenderTarget.Texture);
+            f.generateMipmap(f.TEXTURE_2D);
+        }
+        this.CurrentRenderTarget = e;
+        if (d || c)
+        {
+            var a = 0;
+            if (d)
+            {
+                a = a | f.COLOR_BUFFER_BIT;
+                f.clearColor(CL3D.getRed(b) / 255, CL3D.getGreen(b) / 255, CL3D.getBlue(b) / 255, 1);
+            }
+            if (c)
+            {
+                f.clearDepth(this.InvertedDepthTest ? 0 : 1);
+                a = a | f.DEPTH_BUFFER_BIT;
+            }
+            f.clear(a);
+        }
+        return true;
+    }
+
+    function getRenderTarget()
+    {
+        return this.CurrentRenderTarget;
+    }
+
+    function getRenderTargetSize()
+    {
+        if (this.CurrentRenderTarget)
+            return new CL3D.Vect2d(this.CurrentRenderTarget.CachedWidth, this.CurrentRenderTarget.CachedHeight);
+        return new CL3D.Vect2d(this.width, this.height);
+    }
+
+    function setInvertedDepthTest(a)
+    {
+        this.InvertedDepthTest = a;
+    }
+
+    function replacePlaceholderTextureWithNewTextureContent(b, a)
+    {
+        b.Texture = a.Texture;
+        b.CachedWidth = a.CachedWidth;
+        b.CachedHeight = a.CachedHeight;
+        b.OriginalWidth = a.OriginalWidth;
+        b.OriginalHeight = a.OriginalHeight;
+    }
+
+    function updateTextureFrom2DCanvas(j, b, h)
+    {
+        var c = this.gl;
+        var g = j.Texture;
+        c.bindTexture(c.TEXTURE_2D, g);
+        var a = b.width;
+        var k = b.height;
+        if (b.videoWidth) a = b.videoWidth;
+        if (b.videoHeight) k = b.videoHeight;
+        var e = a;
+        var f = k;
+        if (!this.isPowerOfTwo(a) || !this.isPowerOfTwo(k))
+        {
+            var d = document.createElement("canvas");
+            d.width = this.nextHighestPowerOfTwo(a);
+            d.height = this.nextHighestPowerOfTwo(k);
+            var i = d.getContext("2d");
+            i.fillStyle = "rgba(0, 255, 255, 1)";
+            i.fillRect(0, 0, d.width, d.height);
+            if (h) i.drawImage(b, 0, 0, a, k, 0, 0, a, k);
+            else i.drawImage(b, 0, 0, a, k, 0, 0, d.width, d.height);
+            b = d;
+            e = d.width;
+            f = d.height
+        }
+        this.fillTextureFromDOMObject(g, b);
+        c.texParameteri(c.TEXTURE_2D, c.TEXTURE_MAG_FILTER, c.NEAREST);
+        c.texParameteri(c.TEXTURE_2D, c.TEXTURE_MIN_FILTER, c.NEAREST);
+        c.generateMipmap(c.TEXTURE_2D);
+        c.bindTexture(c.TEXTURE_2D, null);
+    }
+
+    function createTextureFrom2DCanvas(b, h)
+    {
+        var c = this.gl;
+        var g = c.createTexture();
+        c.bindTexture(c.TEXTURE_2D, g);
+        var a = b.width;
+        var k = b.height;
+        if (b.videoWidth) a = b.videoWidth;
+        if (b.videoHeight) k = b.videoHeight;
+        var e = a;
+        var f = k;
+        if (!this.isPowerOfTwo(a) || !this.isPowerOfTwo(k))
+        {
+            var d = document.createElement("canvas");
+            d.width = this.nextHighestPowerOfTwo(a);
+            d.height = this.nextHighestPowerOfTwo(k);
+            var i = d.getContext("2d");
+            if (h) i.drawImage(b, 0, 0, a, k, 0, 0, a, k);
+            else i.drawImage(b, 0, 0, a, k, 0, 0, d.width, d.height);
+            b = d;
+            e = d.width;
+            f = d.height;
+        }
+        this.fillTextureFromDOMObject(g, b);
+        c.texParameteri(c.TEXTURE_2D, c.TEXTURE_MAG_FILTER, c.NEAREST);
+        c.texParameteri(c.TEXTURE_2D, c.TEXTURE_MIN_FILTER, c.NEAREST);
+        c.generateMipmap(c.TEXTURE_2D);
+        c.bindTexture(c.TEXTURE_2D, null);
+        var j = new CL3D.Texture();
+        j.Name = "";
+        j.Texture = g;
+        j.Image = null;
+        j.Loaded = true;
+        j.CachedWidth = e;
+        j.CachedHeight = f;
+        j.OriginalWidth = a;
+        j.OriginalHeight = k;
+        return j;
+    }
+
+    function isPowerOfTwo(a)
+    {
+        return (a & (a - 1)) == 0;
+    }
+
+    function nextHighestPowerOfTwo(a)
+    {
+        --a;
+        for (var b = 1; b < 32; b <<= 1)
+        {
+            a = a | a >> b;
+        }
+        return a + 1;
+    }
+
+    function fillTextureFromDOMObject(a, b)
+    {
+        var f = this.gl;
+        try f.texImage2D(f.TEXTURE_2D, 0, f.RGBA, f.RGBA, f.UNSIGNED_BYTE, b)
+        catch (d)
+        {
+            if (d.code != null && DOMException != null && DOMException.SECURITY_ERR != null && d.code == DOMException.SECURITY_ERR)
+            {
+                if (this.domainTextureLoadErrorPrinted == false)
+                    CL3D.gCCDebugOutput.printError("<i>A security setting in the browser prevented loading a texture.<br/>Workaround: run this from a webserver, change security settings, or allow the specific domain.</i>", true);
+                this.domainTextureLoadErrorPrinted = true;
+                return;
+            }
+            try f.texImage2D(f.TEXTURE_2D, 0, b);
+            catch (c) {}
+        }
+    }
+
+    function finalizeLoadedImageTexture(b) 
+    {
+        var f = this.gl;
+        var c = f.createTexture();
+        var e = b.Image;
+        if (!this.isPowerOfTwo(e.width) || !this.isPowerOfTwo(e.height))
+        {
+            var a = document.createElement("canvas");
+            if (a != null)
+            {
+                a.width = this.nextHighestPowerOfTwo(e.width);
+                a.height = this.nextHighestPowerOfTwo(e.height);
+                var d = a.getContext("2d");
+                d.drawImage(e, 0, 0, e.width, e.height, 0, 0, a.width, a.height);
+                e = a;
+            }
+        }
+        f.bindTexture(f.TEXTURE_2D, c);
+        this.fillTextureFromDOMObject(c, e);
+        f.generateMipmap(f.TEXTURE_2D);
+        f.texParameteri(f.TEXTURE_2D, f.TEXTURE_MAG_FILTER, f.LINEAR);
+        f.texParameteri(f.TEXTURE_2D, f.TEXTURE_MIN_FILTER, f.LINEAR_MIPMAP_NEAREST);
+        f.bindTexture(f.TEXTURE_2D, null);
+        this.textureWasLoadedFlag = true;
+        b.Texture = c;
+    }
+
+    function getStaticBillboardMeshBuffer()
+    {
+        if (this.StaticBillboardMeshBuffer == null) this.createStaticBillboardMeshBuffer();
+        return this.StaticBillboardMeshBuffer;
+    }
+
+    function createStaticBillboardMeshBuffer()
+    {
+        if (this.StaticBillboardMeshBuffer != null) return;
+        
+        var f = null;
+        f = new CL3D.MeshBuffer();
+        var g = new CL3D.Vertex3D(true);
+        var e = new CL3D.Vertex3D(true);
+        var c = new CL3D.Vertex3D(true);
+        var b = new CL3D.Vertex3D(true);
+        var d = f.Indices;
+        d.push(0);
+        d.push(2);
+        d.push(1);
+        d.push(0);
+        d.push(3);
+        d.push(2);
+        var a = f.Vertices;
+        a.push(g);
+        a.push(e);
+        a.push(c);
+        a.push(b);
+        g.TCoords.X = 1;
+        g.TCoords.Y = 1;
+        g.Pos.set(1, -1, 0);
+        e.TCoords.X = 1;
+        e.TCoords.Y = 0;
+        e.Pos.set(1, 1, 0);
+        c.TCoords.X = 0;
+        c.TCoords.Y = 0;
+        c.Pos.set(-1, 1, 0);
+        b.TCoords.X = 0;
+        b.TCoords.Y = 1;
+        b.Pos.set(-1, -1, 0);
+        this.StaticBillboardMeshBuffer = f;
+    }
+
+    function quicklyEnableShadowMap(a)
+    {
+        this.ShadowMapEnabled = a;
+    }
+
+    function isShadowMapEnabled()
+    {
+        return this.ShadowMapEnabled;
+    }
+
+    function enableShadowMap(b, a, c, e, d)
+    {
+        this.ShadowMapEnabled = b;
+        this.ShadowMapTexture = a;
+        this.ShadowMapTexture2 = e;
+        if (c != null)
+            this.ShadowMapLightMatrix = c.clone();
+        else
+            this.ShadowMapLightMatrix = null;
+        if (d != null)
+            this.ShadowMapLightMatrix2 = d.clone();
+        else
+            this.ShadowMapLightMatrix2 = null;
+    }
+};

@@ -1,0 +1,118 @@
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+		<title>Test</title>
+		
+		<script type="text/javascript" src="src/cl3dnamespace.js"></script>
+		<script type="text/javascript" src="src/debug.js"></script>
+		<script type="text/javascript" src="src/ccfileloader.js"></script>	
+		<script type="text/javascript" src="src/core.js"></script>
+		<script type="text/javascript" src="src/flacetimer.js"></script>
+		<script type="text/javascript" src="src/vect3df.js"></script>
+		<script type="text/javascript" src="src/vect2df.js"></script>
+		<script type="text/javascript" src="src/box3df.js"></script>
+		<script type="text/javascript" src="src/plane3d.js"></script>
+		<script type="text/javascript" src="src/triangle3df.js"></script>
+		<script type="text/javascript" src="src/matrix4.js"></script>
+		<script type="text/javascript" src="src/quaternion.js"></script>
+		<script type="text/javascript" src="src/viewfrustrum.js"></script>
+		<script type="text/javascript" src="src/s3dvertexunified.js"></script>
+		<script type="text/javascript" src="src/texture.js"></script>
+		<script type="text/javascript" src="src/material.js"></script>
+		<script type="text/javascript" src="src/meshbuffer.js"></script>	
+		<script type="text/javascript" src="src/mesh.js"></script>	
+		<script type="text/javascript" src="src/skinnedmesh.js"></script>	
+		<script type="text/javascript" src="src/action.js"></script>
+		<script type="text/javascript" src="src/texturemanager.js"></script>		
+		<script type="text/javascript" src="src/binarystream.js"></script>
+		<script type="text/javascript" src="src/renderer.js"></script>
+		<script type="text/javascript" src="src/scenenode.js"></script>
+		<script type="text/javascript" src="src/meshscenenode.js"></script>
+		<script type="text/javascript" src="src/camerascenenode.js"></script>
+		<script type="text/javascript" src="src/skyboxscenenode.js"></script>
+		<script type="text/javascript" src="src/cubescenenode.js"></script>
+		<script type="text/javascript" src="src/billboardscenenode.js"></script>
+		<script type="text/javascript" src="src/particlesystemscenenode.js"></script>
+		<script type="text/javascript" src="src/lightscenenode.js"></script>
+		<script type="text/javascript" src="src/pathscenenode.js"></script>
+		<script type="text/javascript" src="src/overlay2dscenenode.js"></script>	
+		<script type="text/javascript" src="src/mobile2dinputnode.js"></script>			
+		<script type="text/javascript" src="src/hotspotscenenode.js"></script>	
+		<script type="text/javascript" src="src/watersurfacescenenode.js"></script>	
+		<script type="text/javascript" src="src/animatedmeshscenenode.js"></script>
+		<script type="text/javascript" src="src/animator.js"></script>
+		<script type="text/javascript" src="src/animatorcamerafps.js"></script>
+		<script type="text/javascript" src="src/animatorcameramodelviewer.js"></script>
+		<script type="text/javascript" src="src/animatorfollowpath.js"></script>
+		<script type="text/javascript" src="src/animatorflycircle.js"></script>
+		<script type="text/javascript" src="src/animatorflystraight.js"></script>
+		<script type="text/javascript" src="src/animatorrotation.js"></script>
+		<script type="text/javascript" src="src/animatoranimatetexture.js"></script>
+		<script type="text/javascript" src="src/animatoronclick.js"></script>
+		<script type="text/javascript" src="src/animatoronmove.js"></script>		
+		<script type="text/javascript" src="src/animatoroncollide.js"></script>
+		<script type="text/javascript" src="src/animatorcollisionresponse.js"></script>
+		<script type="text/javascript" src="src/animatorscoppercubeprivate.js"></script>		
+		<script type="text/javascript" src="src/flace.js"></script>
+		<script type="text/javascript" src="src/flacescene.js"></script>	
+		<script type="text/javascript" src="src/flacepanoramascene.js"></script>
+		<script type="text/javascript" src="src/flacefree3dscene.js"></script>
+		<script type="text/javascript" src="src/flaceloader.js"></script>
+		<script type="text/javascript" src="src/scriptinginterface.js"></script>
+		<script type="text/javascript" src="src/flacedocument.js"></script>
+		<script type="text/javascript" src="src/base64.js"></script>
+		<script type="text/javascript" src="src/triangleselector.js"></script>	
+		<script type="text/javascript" src="src/soundmanager.js"></script>	
+		<script type="text/javascript" src="src/soundscenenode.js"></script>			
+		<script type="text/javascript" src="src/jsinflate.js"></script>
+		<script type="text/javascript" src="src/publicsymbols.js"></script>
+
+	
+	</head>
+
+	<body>	
+	
+			<div align="center">		
+				Simple test example using the uncompiled copperlicht source instead of the compiled copperlicht.js file.<br/>
+				<br/><br/>
+				<canvas id="3darea" width="640" height="480" style="background-color:#000000">
+				</canvas>
+			</div>
+			
+			<script type="text/javascript">
+				<!--		
+					// create the 3d engine
+				 var engine = new CL3D.CopperLicht('3darea');
+				  
+				if (engine.initRenderer())
+				{
+				 
+				  // add a new 3d scene
+				  
+				  var scene = new CL3D.Scene();
+				  engine.addScene(scene);
+				  
+				  scene.setBackgroundColor(CL3D.createColor(1, 100, 0, 0));
+				  scene.setRedrawMode(CL3D.Scene.REDRAW_WHEN_SCENE_CHANGED);
+									 
+				  // add a cube to test out
+				  var cubenode = new CL3D.CubeSceneNode();
+				  scene.getRootSceneNode().addChild(cubenode);
+				  cubenode.getMaterial(0).Tex1 = engine.getTextureManager().getTexture("test.jpg", true);
+									   
+				  // add a user controlled camera with a first person shooter style camera controller
+				  var cam = new CL3D.CameraSceneNode();
+				  cam.Pos.X = 20;
+				  cam.Pos.Y = 15;
+				  
+				  var animator = new CL3D.AnimatorCameraFPS(cam, engine);                              
+				  cam.addAnimator(animator);                              
+				  animator.lookAt(new CL3D.Vect3d(0,0,0));         
+				  
+				  scene.getRootSceneNode().addChild(cam);
+				  scene.setActiveCamera(cam);     
+				}
+				-->
+			</script>
+	</body>
+</html>

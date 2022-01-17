@@ -1,0 +1,32 @@
+CL3D.Vect2d = _Vect2d;
+
+CL3D.Vect2d.member_list =
+[
+    "X",
+    "Y",
+    "set",
+    "clone"
+];
+
+class _Vect2d
+{
+    var X = 0;
+    var Y = 0;
+
+    function _Vect2d(a, b)
+    {
+        if(b !== void) this.set(a, b);
+        else this.set(0, 0);
+    }
+
+    function set(a, b)
+    {
+        this.X = a;
+        this.Y = b;
+    }
+
+    function clone()
+    {
+        return new CL3D.Vect2d(this.X, this.Y);
+    }
+};

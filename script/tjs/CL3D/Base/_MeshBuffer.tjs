@@ -1,0 +1,132 @@
+CL3D.MeshBuffer = _MeshBuffer;
+
+CL3D.MeshBuffer.member_list =
+[
+    "Box",
+    "Mat",
+    "Indices",
+    "Vertices",
+    "RendererNativeArray",
+    "OnlyPositionsChanged",
+    "OnlyUpdateBufferIfPossible",
+    "Tangents",
+    "Binormals",
+    "update",
+    "freeNativeArray",
+    "recalculateBoundingBox",
+    "createClone"
+];
+
+class _MeshBuffer
+{
+    var Box = new CL3D.Box3d();
+    var Mat = new CL3D.Material();
+    var Indices = new Array();
+    var Vertices = new Array();
+    var RendererNativeArray = null;
+    var OnlyPositionsChanged = false;
+    var OnlyUpdateBufferIfPossible = false;
+    var Tangents = null;
+    var Binormals = null;
+
+    function _MeshBuffer() {}
+
+    function update(b, a)
+    {
+        if (b) this.OnlyPositionsChanged = true
+        else
+        {
+            if (a) this.OnlyUpdateBufferIfPossible = true
+            else this.RendererNativeArray = null;
+        }
+    }
+
+    function freeNativeArray()
+    {
+        var a = this.RendererNativeArray;
+        if (a && a.gl)
+        {
+            if (a.positionBuffer)
+                a.gl.deleteBuffer(a.positionBuffer);
+
+            if (a.positionsArray)
+                delete a.positionsArray;
+
+            if (a.texcoordsBuffer)
+                a.gl.deleteBuffer(a.texcoordsBuffer);
+
+            if (a.texcoordsBuffer2)
+                a.gl.deleteBuffer(a.texcoordsBuffer2);
+
+            if (a.normalBuffer)
+                a.gl.deleteBuffer(a.normalBuffer);
+
+            if (a.colorBuffer)
+                a.gl.deleteBuffer(a.colorBuffer);
+
+            if (a.indexBuffer
+                a.gl.deleteBuffer(a.colorBuffer);
+
+            if (this.Tangents)
+                a.gl.deleteBuffer(a.gl.tangentBuffer);
+
+            if (this.Binormals)
+                a.gl.deleteBuffer(a.gl.binormalBuffer);
+        }
+        delete this.RendererNativeArray;
+    }
+
+    function recalculateBoundingBox()
+    {
+        if (!this.Vertices || this.Vertices.length == 0)
+            this.Box.reset(0, 0, 0);
+        else
+        {
+            var a = this.Vertices[0];
+            this.Box.MinEdge = a.Pos.clone();
+            this.Box.MaxEdge = a.Pos.clone();
+            for (var b = 1; b < this.Vertices.length; ++b)
+            {
+                a = this.Vertices[b];
+                this.Box.addInternalPointByVector(a.Pos);
+            }
+        }
+    }
+
+    function createClone()
+    {
+        var inst = new CL3D.MeshBuffer();
+
+        inst.Box = this.Box.clone();
+        inst.Mat = this.Mat.clone();
+        if (this.Vertices)
+        {
+            for (var b = 0; b < this.Vertices.length; ++b)
+            {
+                inst.Vertices.push(this.Vertices[b]);
+            }
+        }
+        if (this.Indices)
+        {
+            for (var b = 0; b < this.Indices.length; ++b)
+            {
+                inst.Indices.push(this.Indices[b]);
+            }
+        }
+        if (this.Tangents)
+        {
+            for (var b = 0; b < this.Tangents.length; ++b)
+            {
+                inst.Tangents.push(this.Tangents[b].clone());
+            }
+        }
+        if (this.Binormals)
+        {
+            for (var b = 0; b < this.Binormals.length; ++b)
+            {
+                inst.Binormals.push(this.Binormals[b].clone());
+            }
+        }
+        return inst;
+    }
+};

@@ -1,0 +1,5 @@
+@if (DystopiaEngine)
+	property clear { getter {} setter (v) {} }
+@endif
+
+Scripts.execTJS("Initialize.tjs");

@@ -1,0 +1,65 @@
+CL3D.Vertex3D = _Vertex3D;
+
+CL3D.Vertex3D.member_list =
+[
+    "Pos",
+    "Normal",
+    "Color",
+    "TCoords",
+    "TCoords2",
+    "cloneVertex3D",
+    "createVertex"
+];
+
+class _Vertex3D
+{
+    var Pos = null;
+    var Normal = null;
+    var Color = 0;
+    var TCoords = null;
+    var TCoords2 = null;
+
+    function _Vertex3D(a)
+    {
+        if (a)
+        {
+            this.Pos = new CL3D.Vect3d();
+            this.Normal = new CL3D.Vect3d();
+            this.Color = 4282400832;
+            this.TCoords = new CL3D.Vect2d();
+            this.TCoords2 = new CL3D.Vect2d();
+        }
+    }
+
+    function cloneVertex3D(b)
+    {
+        var a = new CL3D.Vertex3D();
+
+        a.Pos = b.Pos.clone();
+        a.Color = b.Color;
+        a.Normal = b.Normal.clone();
+        a.TCoords = b.TCoords.clone();
+        a.TCoords2 = b.TCoords2.clone();
+
+        return a;
+    }
+
+    function createVertex(g, f, e, d, c, b, j, i, h)
+    {
+        var a = _new(true);
+
+        a.Pos.X = g;
+        a.Pos.Y = f;
+        a.Pos.Z = e;
+        a.Normal.X = d;
+        a.Normal.Y = c;
+        a.Normal.Z = b;
+        a.Color = j;
+        a.TCoords.X = i;
+        a.TCoords.Y = h;
+        a.TCoords2.X = i;
+        a.TCoords2.Y = h;
+
+        return a;
+    }
+};

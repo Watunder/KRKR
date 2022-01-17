@@ -1,0 +1,140 @@
+CL3D.Box3d = _Box3d;
+
+CL3D.Box3d.member_list =
+[
+    "MinEdge",
+    "MaxEdge",
+    "clone",
+    "getCenter",
+    "getExtent",
+    "getEdges",
+    "intersectsWithLine",
+    "intersectsWithLineImpl",
+    "addInternalPoint",
+    "addInternalPointByVector",
+    "addInternalBox",
+    "intersectsWithBox",
+    "isPointInside",
+    "reset",
+    "isEmpty"
+];
+
+class _Box3d
+{
+    var MinEdge = new CL3D.Vect3d();
+    var MaxEdge = new CL3D.Vect3d();
+
+    function _Box3d() {}
+
+    function clone()
+    {
+        var inst = new CL3D.Box3d();
+
+        inst.MinEdge = this.MinEdge.clone();
+        inst.MaxEdge = this.MaxEdge.clone();
+
+        return inst;
+    }
+
+    function getCenter()
+    {
+        var a = this.MinEdge.add(this.MaxEdge);
+        a.multiplyThisWithScal(0.5);
+        return a;
+    }
+
+    function getExtent()
+    {
+        return this.MaxEdge.substract(this.MinEdge);
+    }
+
+    function getEdges()
+    {
+        var b = this.getCenter();
+        var c = b.substract(this.MaxEdge);
+        var a = new Array();
+        a.push(new CL3D.Vect3d(b.X + c.X, b.Y + c.Y, b.Z + c.Z));
+        a.push(new CL3D.Vect3d(b.X + c.X, b.Y - c.Y, b.Z + c.Z));
+        a.push(new CL3D.Vect3d(b.X + c.X, b.Y + c.Y, b.Z - c.Z));
+        a.push(new CL3D.Vect3d(b.X + c.X, b.Y - c.Y, b.Z - c.Z));
+        a.push(new CL3D.Vect3d(b.X - c.X, b.Y + c.Y, b.Z + c.Z));
+        a.push(new CL3D.Vect3d(b.X - c.X, b.Y - c.Y, b.Z + c.Z));
+        a.push(new CL3D.Vect3d(b.X - c.X, b.Y + c.Y, b.Z - c.Z));
+        a.push(new CL3D.Vect3d(b.X - c.X, b.Y - c.Y, b.Z - c.Z));
+        return a;
+    }
+
+    function intersectsWithLine(d, e)
+    {
+        var c = e.substract(d);
+        var a = c.getLength();
+        c.normalize();
+        var b = d.add(e).multiplyWithScal(0.5);
+        return this.intersectsWithLineImpl(b, c, a * 0.5);
+    }
+
+    function intersectsWithLineImpl(b, a, g)
+    {
+        var f = this.getExtent().multiplyWithScal(0.5);
+        var c = this.getCenter().substract(b);
+        if ((Math.abs(c.X) > f.X + g * Math.abs(a.X)) || (Math.abs(c.Y) > f.Y + g * Math.abs(a.Y)) || (Math.abs(c.Z) > f.Z + g * Math.abs(a.Z))) return false;
+
+        var d = f.Y * Math.abs(a.Z) + f.Z * Math.abs(a.Y);
+        if (Math.abs(c.Y * a.Z - c.Z * a.Y) > d) return false;
+
+        d = f.X * Math.abs(a.Z) + f.Z * Math.abs(a.X);
+        if (Math.abs(c.Z * a.X - c.X * a.Z) > d) return false;
+
+        d = f.X * Math.abs(a.Y) + f.Y * Math.abs(a.X);
+        if (Math.abs(c.X * a.Y - c.Y * a.X) > d) return false;
+
+        return true;
+    }
+
+    function addInternalPoint(a, c, b)
+    {
+        if (a > this.MaxEdge.X) this.MaxEdge.X = a;
+
+        if (c > this.MaxEdge.Y) this.MaxEdge.Y = c;
+
+        if (b > this.MaxEdge.Z) this.MaxEdge.Z = b;
+
+        if (a < this.MinEdge.X) this.MinEdge.X = a;
+
+        if (c < this.MinEdge.Y) this.MinEdge.Y = c;
+
+        if (b < this.MinEdge.Z) this.MinEdge.Z = b;
+    }
+
+    function addInternalPointByVector(a)
+    {
+        this.addInternalPoint(a.X, a.Y, a.Z);
+    }
+
+    function addInternalBox(a)
+    {
+        this.addInternalPointByVector(a.MinEdge);
+        this.addInternalPointByVector(a.MaxEdge);
+    }
+
+    function intersectsWithBox(a)
+    {
+        return this.MinEdge.X <= a.MaxEdge.X && this.MinEdge.Y <= a.MaxEdge.Y && this.MinEdge.Z <= a.MaxEdge.Z && this.MaxEdge.X >= a.MinEdge.X && this.MaxEdge.Y >= a.MinEdge.Y && this.MaxEdge.Z >= a.MinEdge.Z;
+    }
+
+    function isPointInside(a)
+    {
+        return a.X >= this.MinEdge.X && a.X <= this.MaxEdge.X && a.Y >= this.MinEdge.Y && a.Y <= this.MaxEdge.Y && a.Z >= this.MinEdge.Z && a.Z <= this.MaxEdge.Z;
+    }
+
+    function reset(a, c, b)
+    {
+        this.MaxEdge.set(a, c, b);
+        this.MinEdge.set(a, c, b);
+    }
+
+    function isEmpty()
+    {
+        return this.MaxEdge.equals(this.MinEdge);
+    }
+};

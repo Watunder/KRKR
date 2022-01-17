@@ -1,0 +1,135 @@
+CL3D.ViewFrustrum = _ViewFrustrum;
+
+CL3D.ViewFrustrum.VF_FAR_PLANE = 0;
+CL3D.ViewFrustrum.VF_NEAR_PLANE = 1;
+CL3D.ViewFrustrum.VF_LEFT_PLANE = 2;
+CL3D.ViewFrustrum.VF_RIGHT_PLANE = 3;
+CL3D.ViewFrustrum.VF_BOTTOM_PLANE = 4;
+CL3D.ViewFrustrum.VF_TOP_PLANE = 5;
+CL3D.ViewFrustrum.VF_PLANE_COUNT = 6;
+
+CL3D.ViewFrustrum.member_list =
+[
+    "planes",
+    "setFrom",
+    "getFarLeftUp",
+    "getFarRightUp",
+    "getFarRightDown",
+    "getFarLeftDown",
+    "getBoundingBox",
+    "isBoxInside"
+];
+
+class _ViewFrustrum
+{
+    var planes = new Array();
+
+    function _ViewFrustrum()
+    {
+        for (var a = 0; a < CL3D.ViewFrustrum.VF_PLANE_COUNT; ++a)
+        {
+            this.planes.push(new CL3D.Plane3d());
+        }
+    }
+
+    function setFrom(d)
+    {
+        var b;
+        b = this.planes[CL3D.ViewFrustrum.VF_LEFT_PLANE];
+        b.Normal.X = d.m03 + d.m00;
+        b.Normal.Y = d.m07 + d.m04;
+        b.Normal.Z = d.m11 + d.m08;
+        b.D = d.m15 + d.m12;
+        b = this.planes[CL3D.ViewFrustrum.VF_RIGHT_PLANE];
+        b.Normal.X = d.m03 - d.m00;
+        b.Normal.Y = d.m07 - d.m04;
+        b.Normal.Z = d.m11 - d.m08;
+        b.D = d.m15 - d.m12;
+        b = this.planes[CL3D.ViewFrustrum.VF_TOP_PLANE];
+        b.Normal.X = d.m03 - d.m01;
+        b.Normal.Y = d.m07 - d.m05;
+        b.Normal.Z = d.m11 - d.m09;
+        b.D = d.m15 - d.m13;
+        b = this.planes[CL3D.ViewFrustrum.VF_BOTTOM_PLANE];
+        b.Normal.X = d.m03 + d.m01;
+        b.Normal.Y = d.m07 + d.m05;
+        b.Normal.Z = d.m11 + d.m09;
+        b.D = d.m15 + d.m13;
+        b = this.planes[CL3D.ViewFrustrum.VF_FAR_PLANE];
+        b.Normal.X = d.m03 - d.m02;
+        b.Normal.Y = d.m07 - d.m06;
+        b.Normal.Z = d.m11 - d.m10;
+        b.D = d.m15 - d.m14;
+        b = this.planes[CL3D.ViewFrustrum.VF_NEAR_PLANE];
+        b.Normal.X = d.m02;
+        b.Normal.Y = d.m06;
+        b.Normal.Z = d.m10;
+        b.D = d.m14;
+        var c = 0;
+        for (c = 0; c < CL3D.ViewFrustrum.VF_PLANE_COUNT; ++c)
+        {
+            b = this.planes[c];
+            var a = -(1 / b.Normal.getLength());
+            b.Normal = b.Normal.multiplyWithScal(a);
+            b.D *= a;
+        }
+    }
+
+    function getFarLeftUp()
+    {
+        var a = new CL3D.Vect3d();
+        this.planes[CL3D.ViewFrustrum.VF_FAR_PLANE].getIntersectionWithPlanes(this.planes[CL3D.ViewFrustrum.VF_TOP_PLANE], this.planes[CL3D.ViewFrustrum.VF_LEFT_PLANE], a);
+        return a;
+    };
+
+    function getFarRightUp()
+    {
+        var a = new CL3D.Vect3d();
+        this.planes[CL3D.ViewFrustrum.VF_FAR_PLANE].getIntersectionWithPlanes(this.planes[CL3D.ViewFrustrum.VF_TOP_PLANE], this.planes[CL3D.ViewFrustrum.VF_RIGHT_PLANE], a);
+        return a;
+    };
+
+    function getFarRightDown()
+    {
+        var a = new CL3D.Vect3d();
+        this.planes[CL3D.ViewFrustrum.VF_FAR_PLANE].getIntersectionWithPlanes(this.planes[CL3D.ViewFrustrum.VF_BOTTOM_PLANE], this.planes[CL3D.ViewFrustrum.VF_RIGHT_PLANE], a);
+        return a;
+    };
+
+    function getFarLeftDown()
+    {
+        var a = new CL3D.Vect3d();
+        this.planes[CL3D.ViewFrustrum.VF_FAR_PLANE].getIntersectionWithPlanes(this.planes[CL3D.ViewFrustrum.VF_BOTTOM_PLANE], this.planes[CL3D.ViewFrustrum.VF_LEFT_PLANE], a);
+        return a;
+    };
+
+    function getBoundingBox(c)
+    {
+        var a = new CL3D.Box3d();
+        a.reset(c.X, c.Y, c.Z);
+        a.addInternalPointByVector(this.getFarLeftUp());
+        a.addInternalPointByVector(this.getFarRightUp());
+        a.addInternalPointByVector(this.getFarLeftDown());
+        a.addInternalPointByVector(this.getFarRightDown());
+        return a;
+    };
+
+    function isBoxInside(d)
+    {
+        var a = d.getEdges();
+        for (var e = 0; e < 6; ++e)
+        {
+            var c = false;
+            for (var b = 0; b < 8; ++b)
+            {
+                if (this.planes[e].classifyPointRelation(a[b]) != CL3D.Plane3d.ISREL3D_FRONT)
+                {
+                    c = true;
+                    break;
+                }
+            }
+            if (!c) return false;
+        }
+        return true;
+    }
+};

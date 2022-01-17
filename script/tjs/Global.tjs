@@ -1,0 +1,39 @@
+class _Object
+{
+	var _var;
+	class _class {};
+	function _function(){}
+	property _property { setter(v){} getter(){} }
+};
+
+class Global
+{
+    function Global()
+    {
+
+    }
+};
+
+class _CL3D extends Global
+{
+    function _CL3D()
+    {
+
+    }
+};
+
+class _NVL extends Global
+{
+    function _NVL()
+    {
+
+    }
+};
+
+class _Utils extends Global
+{
+    function _Utils()
+    {
+
+    }
+};

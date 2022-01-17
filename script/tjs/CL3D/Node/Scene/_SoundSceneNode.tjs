@@ -1,0 +1,179 @@
+CL3D.SoundSceneNode = function() {
+    this.init();
+    this.Box = new CL3D.Box3d();
+    this.MinDistance = 0;
+    this.MaxDistance = 0;
+    this.PlayMode = 0;
+    this.DeleteWhenFinished = false;
+    this.MaxTimeInterval = 0;
+    this.MinTimeInterval = 0;
+    this.Volume = 0;
+    this.PlayAs2D = false;
+    this.PlayingSound = null;
+    this.SoundPlayCompleted = false;
+    this.TimeMsDelayFinished = 0;
+    this.PlayedCount = 0
+};
+
+CL3D.SoundSceneNode.prototype = new CL3D.SceneNode();
+CL3D.SoundSceneNode.prototype.getBoundingBox = function() {
+    return this.Box
+};
+
+CL3D.SoundSceneNode.prototype.getType = function() {
+    return "sound"
+};
+
+CL3D.SoundSceneNode.prototype.OnRegisterSceneNode = function(a) {
+    if (this.Visible) {
+        a.registerNodeForRendering(this, CL3D.Scene.RENDER_MODE_DEFAULT);
+        CL3D.SceneNode.prototype.OnRegisterSceneNode.call(this, a)
+    }
+};
+
+CL3D.SoundSceneNode.prototype.get2DAngle = function(c, b) {
+    if (b == 0) {
+        return c < 0 ? 180 : 0
+    } else {
+        if (c == 0) {
+            return b < 0 ? 90 : 270
+        }
+    }
+    var a = b / Math.sqrt(c * c + b * b);
+    a = Math.atan(Math.sqrt(1 - a * a) / a) * CL3D.RADTODEG;
+    if (c > 0 && b > 0) {
+        return a + 270
+    } else {
+        if (c > 0 && b < 0) {
+            return a + 90
+        } else {
+            if (c < 0 && b < 0) {
+                return 90 - a
+            } else {
+                if (c < 0 && b > 0) {
+                    return 270 - a
+                }
+            }
+        }
+    }
+    return a
+};
+
+CL3D.SoundSceneNode.prototype.normalizeAngle = function(a) {
+    return ((a % 360) + 360) % 360
+};
+
+CL3D.SoundSceneNode.normalizeRelativeAngle = function(a) {
+    return ((a + 7 * 180) % (360)) - 1800
+};
+
+CL3D.SoundSceneNode.prototype.updateSoundFor3DSound = function(d, c, i) {
+    var f = this.Volume;
+    if (!i) {
+        return
+    }
+    if (!d) {
+        return
+    }
+    var a = i.getActiveCamera();
+    if (!a) {
+        return
+    }
+    var g = a.getAbsolutePosition();
+    var e = a.getTarget().substract(g);
+    var b = g.getDistanceTo(c);
+    if (b < this.MinDistance) {} else {
+        b -= this.MinDistance;
+        var k = this.MaxDistance - this.MinDistance;
+        if (k > 0) {
+            if (false) {
+                var j = b / k;
+                f = f * (10 - j)
+            } else {
+                if (b > k) {
+                    b = k
+                }
+                var h = 10;
+                if (b != 0) {
+                    h = this.MinDistance / b
+                }
+                b *= this.RollOffFactor;
+                f = f * h
+            }
+            if (f > 10) {
+                f = 10
+            }
+        } else {
+            f = 10
+        }
+    }
+    if (f > 1) {
+        f = 1
+    }
+    CL3D.gSoundManager.setVolume(d, f)
+};
+
+CL3D.SoundSceneNode.prototype.startSound = function(a) {
+    if (!this.PlayingSound && this.TheSound) {
+        this.SoundPlayCompleted = false;
+        this.PlayingSound = CL3D.gSoundManager.play2D(this.TheSound, a);
+        if (!this.PlayAs2D) {
+            var b = this.getAbsolutePosition();
+            this.updateSoundFor3DSound(this.PlayingSound, b, this.scene)
+        }
+    }
+};
+
+CL3D.SoundSceneNode.prototype.OnAnimate = function(b, f) {
+    try {
+        var d = this.getAbsolutePosition();
+        if (this.PlayingSound && !this.PlayAs2D) {
+            this.updateSoundFor3DSound(this.PlayingSound, d, b)
+        }
+        switch (this.PlayMode) {
+            case 0:
+                break;
+            case 1:
+                if (this.PlayingSound && this.PlayingSound.hasPlayingCompleted()) {
+                    this.PlayingSound = null;
+                    var c = this.MaxTimeInterval - this.MinTimeInterval;
+                    if (c < 2) {
+                        c = 2
+                    }
+                    this.TimeMsDelayFinished = f + (Math.random() * c) + this.MinTimeInterval
+                } else {
+                    if (!this.PlayingSound && (!this.TimeMsDelayFinished || f > this.TimeMsDelayFinished)) {
+                        if (this.TheSound) {
+                            this.startSound(false)
+                        }
+                    }
+                }
+                break;
+            case 2:
+                if (!this.PlayingSound) {
+                    if (this.TheSound) {
+                        this.startSound(true)
+                    }
+                }
+                break;
+            case 3:
+                if (this.PlayedCount) {} else {
+                    if (this.TheSound) {
+                        this.startSound(false);
+                        ++this.PlayedCount
+                    }
+                }
+                break
+        }
+    } catch (a) {}
+    return false
+};
+
+CL3D.SoundSceneNode.prototype.createClone = function(b, a, e) {
+    var d = new CL3D.SoundSceneNode();
+    this.cloneMembers(d, b, a, e);
+    if (this.Box) {
+        d.Box = this.Box.clone()
+    }
+    return d
+};

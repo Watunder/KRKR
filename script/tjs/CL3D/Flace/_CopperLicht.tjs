@@ -1,0 +1,1041 @@
+var startCopperLichtFromFile = function(h, a, b, e, d, g, f)
+{
+    var i = CL3D.CopperLicht(h, true, null, false, b, e, d, g, f);
+    i.load(a);
+
+    return i;
+};
+
+CL3D.CopperLicht = function(i, b, d, c, e, j, g, a, f)
+{
+    if ((b == null || b == true) && CL3D.gCCDebugOutput == null)
+        CL3D.gCCDebugOutput = new CL3D.DebugOutput(i, c);
+        
+    this.ElementIdOfCanvas = i;
+    this.MainElement = document.getElementById(this.ElementIdOfCanvas);
+    this.Document = new CL3D.CCDocument();
+    this.TheRenderer = null;
+    this.IsPaused = false;
+    this.NextCameraToSetActive = null;
+    this.TheTextureManager = new CL3D.TextureManager();
+    this.TheMeshCache = new CL3D.MeshCache();
+    this.LoadingAFile = false;
+    this.WaitingForTexturesToBeLoaded = false;
+    this.LoadingAnimationCounter = 0;
+    this.FPS = 60;
+    this.OnAnimate = null;
+    this.OnBeforeDrawAll = null;
+    this.OnAfterDrawAll = null;
+    this.OnLoadingComplete = null;
+    this.requestPointerLockAfterFullscreen = false;
+    this.pointerIsCurrentlyLocked = false;
+    this.playingVideoStreams = new Array();
+    this.pointerLockForFPSCameras = a;
+    this.fullpage = g ? true : false;
+
+    if (this.fullpage) this.initMakeWholePageSize();
+
+    if (j == null)
+    {
+        this.NoWebGLText = 'Error: This browser does not support WebGL (or it is disabled).<br/>See <a href="www.ambiera.com/copperlicht/browsersupport.html">here</a> for details.';
+    }
+    else this.NoWebGLText = j;
+
+    this.RegisteredAnimatorsForKeyUp = new Array();
+    this.RegisteredAnimatorsForKeyDown = new Array();
+    this.MouseIsDown = false;
+    this.MouseX = 0;
+    this.MouseY = 0;
+    this.MouseMoveX = 0;
+    this.MouseMoveY = 0;
+    this.MouseDownX = 0;
+    this.MouseDownY = 0;
+    this.MouseIsInside = true;
+    this.IsTouchPinching = false;
+    this.StartTouchPinchDistance = 0;
+    this.LastCameraDragTime = 0;
+    this.LoadingDialog = null;
+
+    if (e != null) this.createTextDialog(true, e, f);
+
+    this.updateCanvasTopLeftPosition();
+
+    if (d) this.FPS = d;
+
+    var h = this;
+    setInterval(function(){h.loadingUpdateIntervalHandler()}, 500);
+    CL3D.ScriptingInterface.getScriptingInterface().setEngine(this);
+};
+
+CL3D.CopperLicht.initRenderer = function()
+{
+    return this.createRenderer();
+};
+
+CL3D.CopperLicht.getRenderer = function()
+{
+    return this.TheRenderer;
+};
+
+CL3D.CopperLicht.getScene = function()
+{
+    if (this.Document == null) return null;
+    
+    return this.Document.getCurrentScene();
+};
+
+CL3D.CopperLicht.registerEventHandlers = function()
+{
+    var d = this;
+    document.onkeydown = function(c)
+    {
+        d.handleKeyDown(c);
+    };
+
+    document.onkeyup = function(c)
+    {
+        d.handleKeyUp(c);
+    };
+
+    var i = this.MainElement;
+    if (i != null)
+    {
+        i.onmousemove = function(c)
+        {
+            d.handleMouseMove(c);
+        };
+
+        i.onmousedown = function(c)
+        {
+            d.handleMouseDown(c);
+        };
+
+        i.onmouseup = function(c)
+        {
+            d.handleMouseUp(c);
+        };
+
+        i.onmouseover = function(c)
+        {
+            d.MouseIsInside = true;
+        };
+
+        i.onmouseout = function(c)
+        {
+            d.MouseIsInside = false;
+        };
+
+        this.setupEventHandlersForFullscreenChange();
+        try
+        {
+            var b = function(c)
+            {
+                d.handleMouseWheel(c);
+            };
+
+            i.addEventListener("mousewheel", b, false);
+            i.addEventListener("DOMMouseScroll", b, false);
+        }
+        catch (f) {}
+        try
+        {
+            var h = function(c)
+            {
+                if (c.touches != null)
+                {
+                    d.IsTouchPinching = c.touches.length == 2;
+                    if (d.IsTouchPinching)
+                        d.StartTouchPinchDistance = d.getPinchDistance(c);
+                }
+                if (d.handleMouseDown(c.changedTouches[0]))
+                    d.handleEventPropagation(c, true);
+            };
+
+            var g = function(c)
+            {
+                d.IsTouchPinching = false;
+                if (d.handleMouseUp(c.changedTouches[0]))
+                    d.handleEventPropagation(c, true);
+            };
+
+            var a = function(c)
+            {
+                if (d.IsTouchPinching && c.touches != null && c.touches.length >= 2)
+                {
+                    var e = d.getPinchDistance(c);
+                    var j = e - d.StartTouchPinchDistance;
+                    d.StartTouchPinchDistance = e;
+                    d.sendMouseWheelEvent(j);
+                }
+                else
+                {
+                    if (d.handleMouseMove(c.changedTouches[0]))
+                        d.handleEventPropagation(c, true);
+                }
+            };
+
+            i.addEventListener("touchstart", h, false);
+            i.addEventListener("touchend", g, false);
+            i.addEventListener("touchcancel", g, false);
+            i.addEventListener("touchleave", g, false);
+            i.addEventListener("touchmove", a, false);
+        } catch (f) {};
+    }
+};
+
+CL3D.CopperLicht.getPinchDistance = function(a)
+{
+    var b = a.touches;
+
+    if (b[0].pageX == null) return 0;
+
+    return Math.sqrt((b[0].pageX - b[1].pageX) * (b[0].pageX - b[1].pageX) + (b[0].pageY - b[1].pageY) * (b[0].pageY - b[1].pageY));
+};
+
+CL3D.CopperLicht.load = function(c, d, b)
+{
+    if (!this.createRenderer())
+    {
+        this.createTextDialog(false, this.NoWebGLText);
+        return false;
+    }
+    var e = this;
+    this.LoadingAFile = true;
+    var a = new CL3D.CCFileLoader(c, c.indexOf(".ccbz") != -1);
+    a.load(function(f){e.parseFile(f, c, d); if (b) b();});
+
+    return true;
+};
+
+CL3D.CopperLicht.createRenderer = function()
+{
+    if (this.TheRenderer != null) return true;
+
+    var i = this.MainElement;
+
+    if (i == null) return false;
+
+    var e = i;
+    var b = CL3D.Renderer2DC != null && CL3D.Renderer2DC.debugForce2D;
+    this.TheRenderer = new CL3D.Renderer(this.TheTextureManager);
+
+    if (b || this.TheRenderer.init(e) == false)
+    {
+        if (CL3D.Renderer2DC != null)
+        {
+            this.TheRenderer = CL3D.Renderer2DC();
+            if (this.TheRenderer.init(e) == false) return false;
+        }
+        else return false;
+    }
+    if (this.TheTextureManager)
+        this.TheTextureManager.TheRenderer = this.TheRenderer;
+        
+    this.registerEventHandlers();
+    var h = this;
+    var d = 1000 / this.FPS;
+    var a = true;
+    if (!a) setInterval(function(){h.draw3DIntervalHandler()}, d);
+    else
+    {
+        var g = CL3D.CLTimer.getTime();
+        var f = function()
+        {
+            var j = CL3D.CLTimer.getTime();
+            var c = j - g;
+            if (c > d)
+            {
+                g = j - (c % d);
+                h.draw3DIntervalHandler();
+            }
+            window.requestAnimationFrame(f);
+        };
+        window.requestAnimationFrame(f);
+    }
+    return true;
+};
+
+CL3D.CopperLicht.initMakeWholePageSize = function()
+{
+    document.body.style.margin = "0";
+    document.body.style.padding = "0";
+    document.body.style.overflow = "hidden";
+};
+
+CL3D.CopperLicht.makeWholePageSize = function()
+{
+    var a = window.innerWidth || window.clientWidth;
+    var b = window.innerHeight || window.clientHeight;
+    this.MainElement.setAttribute("width", a + "px");
+    this.MainElement.setAttribute("height", b + "px");
+};
+
+CL3D.CopperLicht.draw3DIntervalHandler = function()
+{
+    if (this.fullpage) this.makeWholePageSize();
+    this.draw3dScene();
+    if (CL3D.gCCDebugOutput != null)
+    {
+        var b = this.Document.getCurrentScene();
+        var a = null;
+        CL3D.gCCDebugOutput.updatefps(a);
+    }
+};
+
+CL3D.CopperLicht.loadingUpdateIntervalHandler = function()
+{
+    if (this.LoadingDialog != null) this.updateLoadingDialog();
+    if (!CL3D.gCCDebugOutput) return;
+    ++this.LoadingAnimationCounter;
+    var b = 0;
+    var c = 0;
+    if (this.TheTextureManager)
+    {
+        b = this.TheTextureManager.getCountOfTexturesToLoad();
+        c = this.TheTextureManager.getTextureCount();
+    }
+    if (this.WaitingForTexturesToBeLoaded && b == 0)
+    {
+        this.WaitingForTexturesToBeLoaded = false;
+        this.startFirstSceneAfterEverythingLoaded();
+    }
+    if (this.LoadingAFile || b)
+    {
+        var a = "Loading";
+        if (b > 0) a = "Textures loaded: " + (c - b) + "/" + c;
+        switch (this.LoadingAnimationCounter % 4) {
+            case 0:
+                a += ("   ");
+                break;
+            case 1:
+                a += (".  ");
+                break;
+            case 2:
+                a += (".. ");
+                break;
+            case 3:
+                a += ("...");
+                break;
+        }
+        CL3D.gCCDebugOutput.setLoadingText(a);
+    }
+    else CL3D.gCCDebugOutput.setLoadingText(null);
+};
+
+CL3D.CopperLicht.isLoading = function()
+{
+    return this.LoadingAFile || this.WaitingForTexturesToBeLoaded;
+};
+
+CL3D.CopperLicht.parseFile = function(b, c, d)
+{
+    this.LoadingAFile = false;
+    var a = new CL3D.FlaceLoader();
+    var f = a.loadFile(b, c, this.TheTextureManager, this.TheMeshCache, this);
+    if (f != null)
+    {
+        if (!d || this.Document == null || (this.Document != null && this.Document.Scenes.length == 0))
+        {
+            this.Document = f;
+            if (a.LoadedAReloadAction)
+            {
+                this.LastLoadedFileContent = a.StoredFileContent;
+                this.LastLoadedFilename = c;
+            }
+            if (!f.WaitUntilTexturesLoaded) this.startFirstSceneAfterEverythingLoaded();
+            else this.WaitingForTexturesToBeLoaded = true;
+        }
+        else
+        {
+            for (var e = 0; e < f.Scenes.length; ++e)
+            {
+                this.Document.addScene(f.Scenes[e]);
+            }
+        }
+    }
+};
+
+CL3D.CopperLicht.startFirstSceneAfterEverythingLoaded = function()
+{
+    this.gotoScene(this.Document.getCurrentScene());
+    this.draw3dScene();
+    if (this.OnLoadingComplete != null) this.OnLoadingComplete();
+};
+
+CL3D.CopperLicht.draw3dScene = function()
+{
+    if (this.Document == null || this.TheRenderer == null) return;
+    if (this.isLoading()) return;
+
+    this.updateCanvasTopLeftPosition();
+    this.internalOnBeforeRendering();
+    var b = this.Document.getCurrentScene();
+    if (!this.IsPaused && b)
+    {
+        if (this.updateAllVideoStreams()) b.forceRedrawNextFrame();
+        if (this.OnAnimate) this.OnAnimate();
+        this.TheRenderer.registerFrame();
+        if (b.doAnimate(this.TheRenderer))
+        {
+            this.TheRenderer.beginScene(b.BackgroundColor);
+
+            if (this.OnBeforeDrawAll) this.OnBeforeDrawAll();
+            b.drawAll(this.TheRenderer);
+            if (this.OnAfterDrawAll) this.OnAfterDrawAll();
+            var a = CL3D.ScriptingInterface.getScriptingInterfaceReadOnly();
+            if (a != null) a.runDrawCallbacks(this.TheRenderer);
+            
+            this.TheRenderer.endScene();
+        }
+    }
+    this.internalOnAfterRendering()
+};
+
+CL3D.CopperLicht.internalOnAfterRendering = function()
+{
+    this.setNextCameraActiveIfNeeded();
+};
+
+CL3D.CopperLicht.internalOnBeforeRendering = function()
+{
+    this.setNextCameraActiveIfNeeded();
+};
+
+CL3D.CopperLicht.getScenes = function()
+{
+    if (this.Document) return this.Document.Scenes;
+    return 0;
+};
+
+CL3D.CopperLicht.addScene = function(a)
+{
+    if (this.Document)
+    {
+        this.Document.Scenes.push(a);
+        if (this.Document.Scenes.length == 1)
+            this.Document.setCurrentScene(a);
+    }
+};
+
+CL3D.CopperLicht.gotoSceneByName = function(f, e)
+{
+    if (!this.Document) return false;
+        
+    var b = this.Document.Scenes;
+    var c = f;
+    if (e) c = c.toLowerCase();
+    for (var d = 0; d < b.length; ++d)
+    {
+        var a = b[d].Name;
+        if (e) a = a.toLowerCase();
+        if (c == a)
+        {
+            this.gotoScene(b[d]);
+            return true;
+        }
+    }
+    return false;
+};
+
+CL3D.CopperLicht.gotoScene = function(f)
+{
+    if (!f) return false;
+    var k = f.getSceneType() == "panorama";
+    var l = f.getSceneType() == "free";
+    var c = null;
+    this.Document.setCurrentScene(f);
+    if (f.WasAlreadyActivatedOnce) c = f.getActiveCamera();
+    else
+    {
+        f.WasAlreadyActivatedOnce = true;
+        var b = false;
+        var h = f.getAllSceneNodesOfType("camera");
+        if (h)
+        {
+            for (var e = 0; e < h.length; ++e)
+            {
+                var d = h[e];
+                if (d && d.Active)
+                {
+                    c = d;
+                    b = true;
+                    c.setAutoAspectIfNoFixedSet(this.TheRenderer.width, this.TheRenderer.height);
+                    break;
+                }
+            }
+        }
+        if (!b)
+        {
+            var a = 4 / 3;
+            if (this.TheRenderer.width && this.TheRenderer.height)
+                a = this.TheRenderer.width / this.TheRenderer.height;
+
+            c = new CL3D.CameraSceneNode();
+            c.setAspectRatio(a);
+            f.RootNode.addChild(c);
+            var j = null;
+            var g = null;
+            if (!k)
+            {
+                g = new CL3D.AnimatorCameraFPS(c, this);
+                c.addAnimator(g);
+            }
+            if (l)
+            {
+                if (f.DefaultCameraPos != null)
+                    c.Pos = f.DefaultCameraPos.clone();
+
+                if (f.DefaultCameraTarget != null)
+                {
+                    if (g != null)
+                        g.lookAt(f.DefaultCameraTarget);
+                    else c.setTarget(f.DefaultCameraTarget);
+                }
+            }
+            if (g) g.setMayMove(!k);
+        }
+        f.setActiveCamera(c);
+        f.CollisionWorld = f.createCollisionGeometry(true);
+        this.setCollisionWorldForAllSceneNodes(f.getRootSceneNode(), f.CollisionWorld);
+    }
+    CL3D.ScriptingInterface.getScriptingInterface().setActiveScene(f);
+    f.setRedrawMode(this.Document.UpdateMode);
+    f.forceRedrawNextFrame();
+    return true;
+};
+
+CL3D.CopperLicht.setNextCameraActiveIfNeeded = function()
+{
+    if (this.NextCameraToSetActive == null) return;
+
+    var a = this.Document.getCurrentScene();
+    if (a == null) return;
+
+    if (this.NextCameraToSetActive.scene === a)
+    {
+        if (this.TheRenderer)
+        {
+            this.NextCameraToSetActive.setAutoAspectIfNoFixedSet(this.TheRenderer.getWidth(), this.TheRenderer.getHeight());
+        }
+        a.setActiveCamera(this.NextCameraToSetActive);
+        this.NextCameraToSetActive = null;
+    }
+};
+
+CL3D.CopperLicht.handleKeyDown = function(a)
+{
+    var e = this.getScene();
+    if (e == null) return false;
+    if (a == null) a = window.event;
+    var b = false;
+    var d = e.getActiveCamera();
+    if (d != null) b = d.onKeyDown(a);
+    for (var c = 0; c < this.RegisteredAnimatorsForKeyDown.length; ++c)
+    {
+        if (this.RegisteredAnimatorsForKeyDown[c].onKeyDown(a)) b = true;
+    }
+    return this.handleEventPropagation(a, b);
+};
+
+CL3D.CopperLicht.handleKeyUp = function(a)
+{
+    var e = this.getScene();
+    if (e == null) return false;
+    if (a == null) a = window.event;
+    var b = false;
+    var d = e.getActiveCamera();
+    if (d != null) b = d.onKeyUp(a);
+    
+    for (var c = 0; c < this.RegisteredAnimatorsForKeyUp.length; ++c)
+    {
+        if (this.RegisteredAnimatorsForKeyUp[c].onKeyUp(a)) b = true;
+    }
+    return this.handleEventPropagation(a, b);
+};
+
+CL3D.CopperLicht.handleEventPropagation = function(a, b)
+{
+    if (b)
+    {
+        try a.preventDefault();
+        catch (c) {};
+        return true;
+    }
+    return false;
+};
+
+CL3D.CopperLicht.registerAnimatorForKeyUp = function(a)
+{
+    if (a != null) this.RegisteredAnimatorsForKeyUp.push(a);
+};
+
+CL3D.CopperLicht.registerAnimatorForKeyDown = function(a)
+{
+    if (a != null) this.RegisteredAnimatorsForKeyDown.push(a);
+};
+
+CL3D.CopperLicht.updateCanvasTopLeftPosition = function(c)
+{
+    var a = 0;
+    var d = 0;
+    var b = this.MainElement;
+    while (b != null)
+    {
+        a += b.offsetLeft;
+        d += b.offsetTop;
+        b = b.offsetParent;
+    }
+    this.CanvasTopLeftX = a;
+    this.CanvasTopLeftY = d;
+};
+
+CL3D.CopperLicht.isInPointerLockMode = function()
+{
+    return this.pointerIsCurrentlyLocked;
+};
+
+CL3D.CopperLicht.getMousePosXFromEvent = function(b)
+{
+    if (this.isInPointerLockMode()
+    {
+        var a = this.TheRenderer.getWidth();
+        return (a / 2);
+    }
+    if (b.pageX) return b.pageX - this.CanvasTopLeftX;
+    else return b.clientX - this.MainElement.offsetLeft + document.body.scrollLeft;
+};
+
+CL3D.CopperLicht.getMousePosYFromEvent = function(b)
+{
+    if (this.isInPointerLockMode())
+    {
+        var a = this.TheRenderer.getHeight();
+        return (a / 2);
+    }
+    if (b.pageY) return b.pageY - this.CanvasTopLeftY;
+    else return b.clientY - this.MainElement.offsetTop + document.body.scrollTop;
+};
+
+CL3D.CopperLicht.handleMouseDown = function(b)
+{
+    if (b == null) b = window.event;
+    this.MouseIsDown = true;
+    this.MouseIsInside = true;
+    if (b)
+    {
+        this.MouseDownX = this.getMousePosXFromEvent(b);
+        this.MouseDownY = this.getMousePosYFromEvent(b);
+        this.MouseX = this.MouseDownX;
+        this.MouseY = this.MouseDownY;
+    }
+    var d = this.getScene();
+    if (d == null) return false;
+    var a = false;
+    if (this.OnMouseDown) a = this.OnMouseDown();
+    if (!a)
+    {
+        var c = d.getActiveCamera();
+        if (c != null) c.onMouseDown(b);
+        d.postMouseDownToAnimators(b);
+    }
+    return this.handleEventPropagation(b, true);
+};
+
+CL3D.CopperLicht.isMouseOverCanvas = function()
+{
+    return this.MouseIsInside;
+};
+
+CL3D.CopperLicht.getMouseMoveX = function()
+{
+    return this.MouseMoveX;
+};
+
+CL3D.CopperLicht.getMouseMoveY = function()
+{
+    return this.MouseMoveY;
+};
+
+CL3D.CopperLicht.getMouseX = function()
+{
+    return this.MouseX;
+};
+
+CL3D.CopperLicht.getMouseY = function()
+{
+    return this.MouseY;
+};
+
+CL3D.CopperLicht.isMouseDown = function()
+{
+    return this.MouseIsDown;
+};
+
+CL3D.CopperLicht.getMouseDownX = function()
+{
+    return this.MouseDownX;
+};
+
+CL3D.CopperLicht.getMouseDownY = function()
+{
+    return this.MouseDownY;
+};
+
+CL3D.CopperLicht.setMouseDownWhereMouseIsNow = function()
+{
+    if (this.isInPointerLockMode())
+    {
+        this.MouseMoveX = 0;
+        this.MouseMoveY = 0;
+    } else
+    {
+        this.MouseDownX = this.MouseX;
+        this.MouseDownY = this.MouseY;
+    }
+};
+
+CL3D.CopperLicht.handleMouseUp = function(b)
+{
+    if (b == null) b = window.event;
+    this.MouseIsDown = false;
+    var d = this.getScene();
+    if (d == null) return false;
+    if (b)
+    {
+        this.MouseX = this.getMousePosXFromEvent(b);
+        this.MouseY = this.getMousePosYFromEvent(b);
+    }
+    var a = false;
+    if (this.OnMouseUp) a = this.OnMouseUp();
+    if (!a)
+    {
+        var c = d.getActiveCamera();
+        if (c != null) c.onMouseUp(b);
+        d.postMouseUpToAnimators(b);
+    }
+    return this.handleEventPropagation(b, true);
+};
+
+CL3D.CopperLicht.sendMouseWheelEvent = function(c)
+{
+    var b = this.getScene();
+    if (b == null) return;
+    var a = b.getActiveCamera();
+    if (a != null) a.onMouseWheel(c);
+    b.postMouseWheelToAnimators(c);
+};
+
+CL3D.CopperLicht.handleMouseWheel = function(a)
+{
+    if (!a) a = event;
+    if (!a) return;
+    var b = (a.detail < 0 || a.wheelDelta > 0) ? 1 : -1;
+    this.sendMouseWheelEvent(b);
+};
+
+CL3D.CopperLicht.handleMouseMove = function(a)
+{
+    if (a == null) a = window.event;
+    if (this.isInPointerLockMode())
+    {
+        this.MouseMoveX = (a.movementX || a.mozMovementX || a.webkitMovementX || 0);
+        this.MouseMoveY = (a.movementY || a.mozMovementY || a.webkitMovementY || 0);
+    }
+    if (a)
+    {
+        this.MouseX = this.getMousePosXFromEvent(a);
+        this.MouseY = this.getMousePosYFromEvent(a);
+    }
+    var c = this.getScene();
+    if (c == null) return false;
+    var b = c.getActiveCamera();
+    if (b != null) b.onMouseMove(a);
+    c.postMouseMoveToAnimators(a);
+    return this.handleEventPropagation(a, true);
+};
+
+CL3D.CopperLicht.OnAnimate = null;
+CL3D.CopperLicht.OnMouseUp = null;
+CL3D.CopperLicht.OnMouseDown = null;
+CL3D.CopperLicht.OnAfterDrawAll = null;
+CL3D.CopperLicht.OnBeforeDrawAll = null;
+CL3D.CopperLicht.OnLoadingComplete = null;
+CL3D.CopperLicht.get3DPositionFrom2DPosition = function(m, k)
+{
+    var a = this.TheRenderer;
+    if (a == null) return null;
+    var c = a.getProjection();
+    var l = a.getView();
+    if (c == null || l == null) return null;
+    var b = c.multiply(l);
+    var i = new CL3D.ViewFrustrum();
+    i.setFrom(b);
+    var d = i.getFarLeftUp();
+    var g = i.getFarRightUp().substract(d);
+    var f = i.getFarLeftDown().substract(d);
+    var n = a.getWidth();
+    var e = a.getHeight();
+    var p = m / n;
+    var o = k / e;
+    var j = d.add(g.multiplyWithScal(p)).add(f.multiplyWithScal(o));
+    return j;
+};
+
+CL3D.CopperLicht.get2DPositionFrom3DPosition = function(b)
+{
+    var j = new CL3D.Matrix4(false);
+    var a = this.TheRenderer;
+    if (!a.Projection) return null;
+    a.Projection.copyTo(j);
+    j = j.multiply(a.View);
+    var i = a.getWidth() / 2;
+    var e = a.getHeight() / 2;
+    var h = i;
+    var g = e;
+    if (e == 0 || i == 0) return null;
+    var d = new CL3D.Vect3d(b.X, b.Y, b.Z);
+    d.W = 1;
+    j.multiplyWith1x4Matrix(d);
+    var c = d.W == 0 ? 1 : (1 / d.W);
+    if (d.Z < 0) return null;
+    var f = new CL3D.Vect2d();
+    f.X = i * (d.X * c) + h;
+    f.Y = g - (e * (d.Y * c));
+    return f;
+};
+
+CL3D.CopperLicht.setActiveCameraNextFrame = function(a)
+{
+    if (a == null) return;
+    this.NextCameraToSetActive = a;
+};
+
+CL3D.CopperLicht.getTextureManager = function()
+{
+    return this.TheTextureManager;
+};
+
+CL3D.CopperLicht.setCollisionWorldForAllSceneNodes = function(g, e)
+{
+    if (!g) return;
+    
+    for (var a = 0; a < g.Animators.length; ++a)
+    {
+        var d = g.Animators[a];
+        if (d)
+        {
+            if (d.getType() == "collisionresponse")
+                d.setWorld(e);
+            else
+            {
+                if (d.getType() == "onclick" || d.getType() == "onmove")
+                    d.World = e;
+                else
+                {
+                    if (d.getType() == "gameai")
+                        d.World = e;
+                    else
+                    {
+                        if (d.getType() == "3rdpersoncamera")
+                            d.World = e;
+                    }
+                }
+            }
+        }
+    }
+    for (var b = 0; b < g.Children.length; ++b)
+    {
+        var f = g.Children[b];
+        if (f) this.setCollisionWorldForAllSceneNodes(f, e);
+    }
+};
+
+CL3D.CopperLicht.reloadScene = function(e)
+{
+    if (!e || !this.Document) return false;
+    if (this.LastLoadedFileContent == null) return false;
+    var f = null;
+    var g = -1;
+    for (var c = 0; c < this.Document.Scenes.length; ++c)
+    {
+        if (e == this.Document.Scenes[c].Name)
+        {
+            g = c;
+            f = this.Document.Scenes[c];
+            break;
+        }
+    }
+    if (g == -1) return false;
+    var a = new CL3D.FlaceLoader();
+    var b = a.reloadScene(this.LastLoadedFileContent, f, g, this.LastLoadedFilename, this.TheTextureManager, this.TheMeshCache, this);
+    if (b != null)
+    {
+        var d = this.Document.getCurrentScene() == f;
+        this.Document.Scenes[g] = b;
+        if (d) this.gotoScene(b);
+    }
+    return true;
+};
+
+CL3D.CopperLicht.updateLoadingDialog = function()
+{
+    if (!this.LoadingAFile && !this.WaitingForTexturesToBeLoaded)
+    {
+        this.LoadingDialog.style.display = "none";
+        this.LoadingDialog = null;
+    }
+};
+
+CL3D.CopperLicht.createTextDialog = function(c, o, d)
+{
+    if (this.MainElement == null) return;
+
+    var g = document.createElement("div");
+    this.MainElement.parentNode.appendChild(g);
+    var i = document.createElement("div");
+    this.updateCanvasTopLeftPosition();
+    var m = 200;
+    var e = c ? 23 : 100;
+    var p = c ? 30 : 0;
+    var l = this.CanvasTopLeftX + ((this.MainElement.width - m) / 2);
+    var j = this.CanvasTopLeftY + (this.MainElement.height / 2);
+
+    if (!c) j += 30;
+
+    var a = c && o.indexOf("<img") != -1;
+    o = o.replace("$PROGRESS$", "");
+    var f = "";
+
+    if (a)
+    {
+        var n = new Image();
+        this.LoadingImage = n;
+        var b = o.indexOf('src="');
+        var q = o.substring(b + 5, o.indexOf('"', b + 5));
+        n.src = q;
+        var k = "#000000";
+
+        if (typeof d !== "undefined") k = d;
+        
+        i.style.cssText = "position: absolute; left:" + this.CanvasTopLeftX + "px; top:" + this.CanvasTopLeftY + "px; color:#ffffff; padding:5px; height:" + this.MainElement.height + "px; width:" + this.MainElement.width + "px; background-color:" + k + ";";
+        f = '<div style="position: relative; top: 50%;  transform: translateY(-50%);">' + o + "</div>"
+    }
+    else
+    {
+        i.style.cssText = "position: absolute; left:" + l + "px; top:" + j + "px; color:#ffffff; padding:5px; background-color:#000000; height:" + e + "px; width:" + m + "px; border-radius:5px; border:1px solid #777777;  opacity:0.5;";
+        f = '<p style="margin:0; padding-left:' + p + 'px; padding-bottom:5px;">' + o + "</p> ";
+
+        if (c && !a)
+            f += '<img style="position:absolute; left:5px; top:3px;" src="copperlichtdata/loading.gif" />';
+    }
+    i.innerHTML = f;
+    g.appendChild(i);
+    
+    if (c) this.LoadingDialog = g;
+};
+
+CL3D.CopperLicht.onFullscreenChanged = function()
+{
+    if (this.requestPointerLockAfterFullscreen)
+        this.requestPointerLock();
+};
+
+CL3D.CopperLicht.requestPointerLock = function()
+{
+    var a = this.MainElement;
+    if (a)
+    {
+        a.requestPointerLock = a.requestPointerLock || a.mozRequestPointerLock || a.webkitRequestPointerLock;
+        a.requestPointerLock();
+    }
+};
+
+CL3D.CopperLicht.onPointerLockChanged = function()
+{
+    var a = this.MainElement;
+    if (document.PointerLockElement === a || document.pointerLockElement === a || document.mozPointerLockElement === a || document.webkitPointerLockElement === a)
+        this.pointerIsCurrentlyLocked = true;
+    else this.pointerIsCurrentlyLocked = false;
+};
+
+CL3D.CopperLicht.setupEventHandlersForFullscreenChange = function()
+{
+    var c = this;
+    var b = function()
+    {
+        c.onFullscreenChanged();
+    };
+
+    var a = function()
+    {
+        c.onPointerLockChanged();
+    };
+
+    document.addEventListener("fullscreenchange", b, false);
+    document.addEventListener("mozfullscreenchange", b, false);
+    document.addEventListener("webkitfullscreenchange", b, false);
+    document.addEventListener("pointerlockchange", a, false);
+    document.addEventListener("mozpointerlockchange", a, false);
+    document.addEventListener("webkitpointerlockchange", a, false);
+};
+
+CL3D.CopperLicht.switchToFullscreen = function(b, a)
+{
+    if (a == null) a = this.MainElement;
+
+    this.requestPointerLockAfterFullscreen = b;
+    a.requestFullscreen = a.requestFullscreen || a.mozRequestFullscreen || a.mozRequestFullScreen || a.msRequestFullscreen || a.webkitRequestFullscreen;
+    a.requestFullscreen();
+};
+
+CL3D.CopperLicht.getOrCreateVideoStream = function(d, e, g, a)
+{
+    for (var f = 0; f < this.playingVideoStreams.length; ++f)
+    {
+        var c = this.playingVideoStreams[f];
+
+        if (c.filename == d) return c;
+    }
+
+    if (e)
+    {
+        var b = new CL3D.VideoStream(d, this.TheRenderer);
+        b.handlerOnVideoEnded = g;
+        b.handlerOnVideoFailed = a;
+        this.playingVideoStreams.push(b);
+
+        return b;
+    }
+
+    return null;
+};
+
+CL3D.CopperLicht.updateAllVideoStreams = function()
+{
+    var d = false;
+    for (var b = 0; b < this.playingVideoStreams.length; ++b)
+    {
+        var a = this.playingVideoStreams[b];
+        a.updateVideoTexture();
+        if (a.hasPlayBackEnded())
+        {
+            if (a.handlerOnVideoEnded != null && !a.isError)
+            {
+                var c = this.getScene();
+                a.handlerOnVideoEnded.execute(c.getRootSceneNode(), c);
+                a.handlerOnVideoEnded = null;
+            }
+            if (a.handlerOnVideoFailed != null && a.isError)
+            {
+                var c = this.getScene();
+                a.handlerOnVideoFailed.execute(c.getRootSceneNode(), c);
+                a.handlerOnVideoFailed = null;
+            }
+            this.playingVideoStreams.splice(b, 1);
+            --b;
+        }
+        else d = true;
+    }
+
+    return d;
+};

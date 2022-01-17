@@ -1,0 +1,77 @@
+function toTJS2String(kag_str)
+{
+	var tjs_str;
+
+    for(var num = 0; num < kag_str.length; num++)
+    {
+        var str = kag_str[num];
+        switch(str)
+        {
+            case '@':
+                for(var _str = '', _num = num + 1; !(_str == '\n' || _str == ' '); _num++)
+				{
+					tjs_str += _str;
+					_str = kag_str[_num];
+					num++;
+				}
+                //tjs_str = (tjs_str, num);
+				tjs_str += '(';
+				if(kag_str[num] == ' ')
+                {
+					tjs_str += '%["';
+					for(var _str = '', _num = num + 1; ; _num++)
+					{
+						//覆盖
+						if(_str == ' ')
+						{
+							tjs_str += '"';
+						}
+						if(_str == '=')
+						{
+							tjs_str += '=>';
+						}
+						else
+						{
+							tjs_str += _str;
+						}
+						_str = kag_str[_num];
+						//添加
+						if(_str == ' ')
+						{
+							tjs_str += ',';
+							continue;
+						}
+						if(_str == '=')
+						{
+							tjs_str += '"';
+							continue;
+						}
+						if(_str == '\n')
+						{
+							tjs_str += ']';
+							num = _num;
+							break;
+						}
+					}
+				}
+                tjs_str += ')\n';
+				break;
+            case '*':
+                for(var _str = '', _num = num + 1; _str != '\n'; _num++)
+				{
+					tjs_str += _str;
+					_str = kag_str[_num];
+					num++;
+				}
+                //tjs_str = (tjs_str, num);
+                break;
+            case ';':
+                tjs_str += '//'; 
+                break;
+            default:
+				tjs_str += str;
+				break;
+        }
+    }
+    return tjs_str;
+}

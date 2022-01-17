@@ -1,0 +1,26 @@
+// Global
+Scripts.execTJS("Global.tjs");
+
+// CL3D
+Scripts.execTJS("Global.CL3D.tjs");
+Scripts.execTJS("_Core.tjs");
+Scripts.execTJS("_Vect3d.tjs");
+Scripts.execTJS("_Vect2d.tjs");
+Scripts.execTJS("_Line3d.tjs");
+Scripts.execTJS("_Box3d.tjs");
+Scripts.execTJS("_Plane3d.tjs");
+Scripts.execTJS("_Triangle3d.tjs");
+Scripts.execTJS("_Matrix4.tjs");
+Scripts.execTJS("_Quaternion.tjs");
+Scripts.execTJS("_ViewFrustrum.tjs");
+Scripts.execTJS("_Vertex3D.tjs");
+Scripts.execTJS("_CopperLicht.tjs");
+
+// NVL
+Scripts.execTJS("Global.NVL.tjs");
+
+// Utils
+Scripts.execTJS("Global.Utils.tjs");
+
+// Vins
+Scripts.execTJS("Global.Vins.tjs");

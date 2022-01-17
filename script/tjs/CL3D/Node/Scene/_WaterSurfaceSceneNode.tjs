@@ -1,0 +1,319 @@
+CL3D.WaterSurfaceSceneNode = function() {
+    this.Details = 0;
+    this.WaterFlowDirection = new CL3D.Vect2d(1, 1);
+    this.WaveLength = 0.5;
+    this.WaveHeight = 0.5;
+    this.WaterColor = CL3D.createColor(190, 255, 255, 255);
+    this.ColorWhenUnderwater = true;
+    this.UnderWaterColor = CL3D.createColor(190, 0, 100, 0);
+    this.DrawDebugTexture = false;
+    this.LastRTTUpdateTime = 0;
+    this.LastRTTUpdateViewMatrix = new CL3D.Matrix4();
+    this.CurrentlyRenderingIntoRTT = false;
+    this.Mat = new CL3D.Material();
+    this.Mat.Lighting = false;
+    this.Mat.Type = -1;
+    this.Mat.BackfaceCulling = false;
+    this.RTTexture = null;
+    this.FrustumCullingProjection = null
+};
+
+CL3D.WaterSurfaceSceneNode.prototype = new CL3D.MeshSceneNode();
+CL3D.WaterSurfaceSceneNode.prototype.getType = function() {
+    return "water"
+};
+
+CL3D.WaterSurfaceSceneNode.prototype.OnRegisterSceneNode = function(j) {
+    if (this.Visible) {
+        j.registerNodeForRendering(this, CL3D.Scene.RENDER_MODE_TRANSPARENT);
+        CL3D.SceneNode.prototype.OnRegisterSceneNode.call(this, j);
+        var a = j.getActiveCamera();
+        var b = CL3D.CLTimer.getTime();
+        var l = false;
+        if (!this.LastRTTUpdateTime) {
+            l = true
+        } else {
+            var d = 100;
+            if (a) {
+                var k = a.getAbsolutePosition();
+                var f = this.getBoundingBox().getExtent().getLength();
+                var i = this.getAbsolutePosition();
+                var h = i.getDistanceTo(k);
+                if (h > f) {
+                    d *= (h / f)
+                }
+                if (d > 1000) {
+                    d = 1000
+                }
+                if (!a.ViewMatrix.equals(this.LastRTTUpdateViewMatrix)) {
+                    d = 10
+                }
+                this.LastRTTUpdateViewMatrix = a.ViewMatrix.clone()
+            }
+            l = this.LastRTTUpdateTime + d < b
+        }
+        if (l) {
+            this.LastRTTUpdateTime = b;
+            j.registerNodeForRendering(this, CL3D.Scene.RENDER_MODE_RTT_SCENE)
+        }
+        if (this.DrawDebugTexture) {
+            j.registerNodeForRendering(this, CL3D.Scene.RENDER_MODE_2DOVERLAY)
+        } else {
+            if (a) {
+                var e = a.getAbsolutePosition();
+                var c = this.getAbsolutePosition();
+                if (e.Y < c.Y) {
+                    var g = this.getTransformedBoundingBox();
+                    if (e.X >= g.MinEdge.X && e.X <= g.MaxEdge.X && e.Z >= g.MinEdge.Z && e.Z <= g.MaxEdge.Z) {
+                        j.registerNodeForRendering(this, CL3D.Scene.RENDER_MODE_2DOVERLAY)
+                    }
+                }
+            }
+        }
+    }
+};
+
+CL3D.WaterSurfaceSceneNode.prototype.OnAnimate = function(a, b) {
+    CL3D.MeshSceneNode.prototype.OnAnimate.call(this, a, b);
+    return true
+};
+
+CL3D.WaterSurfaceSceneNode.prototype.render = function(t) {
+    var p = this.scene.getActiveCamera();
+    if (!p || !this.OwnedMesh) {
+        return
+    }
+    var v = this.scene.getCurrentCameraFrustrum();
+    if (v && this.scene.CurrentRenderMode != CL3D.Scene.RENDER_MODE_2DOVERLAY) {
+        if (!v.isBoxInside(this.getTransformedBoundingBox())) {
+            return
+        }
+    }
+    if (this.scene.CurrentRenderMode == CL3D.Scene.RENDER_MODE_TRANSPARENT) {
+        if (this.Mat.Type == -1 || this.RTTexture == null) {
+            return
+        }
+        if (!this.CurrentlyRenderingIntoRTT) {
+            t.setWorld(this.AbsoluteTransformation);
+            var b = this.OwnedMesh;
+            if (!b) {
+                return
+            }
+            this.Box = b.Box;
+            this.Mat.Tex1 = this.RTTexture;
+            if (b && b.MeshBuffers && b.MeshBuffers.length > 0) {
+                this.Mat.Tex2 = b.MeshBuffers[0].Mat.Tex1
+            }
+            for (var A = 0; A < b.MeshBuffers.length; ++A) {
+                var a = b.MeshBuffers[A];
+                if (a) {
+                    t.setMaterial(this.Mat);
+                    t.drawMeshBuffer(a)
+                }
+            }
+        }
+    } else {
+        if (this.scene.CurrentRenderMode == CL3D.Scene.RENDER_MODE_RTT_SCENE) {
+            if (!this.prepareForRendering(t)) {
+                return
+            }
+            var e = t.getRenderTarget();
+            t.setInvertedDepthTest(true);
+            if (t.setRenderTarget(this.RTTexture, true, true, this.scene.getBackgroundColor())) {
+                this.CurrentlyRenderingIntoRTT = true;
+                var p = this.scene.getActiveCamera();
+                var g = p.Projection;
+                var h = p.ViewMatrix;
+                var d = p.UpVector;
+                var F = p.Target;
+                var D = p.Pos;
+                var r = p.TargetAndRotationAreBound;
+                var C = p.ViewMatrixIsSetByUser;
+                p.ViewMatrixIsSetByUser = true;
+                p.TargetAndRotationAreBound = false;
+                var f = this.getAbsolutePosition().Y;
+                var q = F.clone();
+                var u = D.clone();
+                u.Y = -D.Y + 2 * f;
+                p.Pos = u;
+                q.Y = -F.Y + 2 * f;
+                p.Target = q;
+                var c = new CL3D.Matrix4();
+                c.buildCameraLookAtMatrixLH(u, q, new CL3D.Vect3d(0, 1, 0));
+                p.ViewMatrix = c;
+                var E = new CL3D.Plane3d();
+                E.setPlane(new CL3D.Vect3d(0, f, 0), new CL3D.Vect3d(0, 1, 0));
+                var k = E.clone();
+                c.transformPlane(k);
+                var G = new CL3D.Matrix4();
+                G = g.clone();
+                var s = G;
+                var n = CL3D.sgn(k.Normal.X + s.m08) / s.m00;
+                var l = CL3D.sgn(k.Normal.Y + s.m09) / s.m05;
+                var j = -1;
+                var o = (1 + s.m10) / s.m14;
+                var B = -2 / (n * k.Normal.X + l * k.Normal.Y + j * k.Normal.Z + o * k.D);
+                s.m02 = k.Normal.X * B;
+                s.m06 = k.Normal.Y * B;
+                s.m10 = (k.Normal.Z * B) + 1;
+                s.m14 = k.D * B;
+                this.FrustumCullingProjection = G;
+                this.scene.drawRegistered3DNodes(t, this);
+                p.ViewMatrixIsSetByUser = C;
+                p.Projection = g;
+                p.ViewMatrix = h;
+                p.Target = F;
+                p.Pos = D;
+                p.UpVector = d;
+                p.TargetAndRotationAreBound = r;
+                t.setInvertedDepthTest(false);
+                t.setRenderTarget(e, false, true);
+                this.CurrentlyRenderingIntoRTT = false
+            }
+            t.setInvertedDepthTest(false)
+        } else {
+            if (this.scene.CurrentRenderMode == CL3D.Scene.RENDER_MODE_2DOVERLAY && !this.CurrentlyRenderingIntoRTT) {
+                if (this.ColorWhenUnderwater && !this.DrawDebugTexture) {
+                    t.draw2DRectangle(0, 0, t.getWidth(), t.getHeight(), this.UnderWaterColor, true)
+                }
+                if (this.DrawDebugTexture) {
+                    t.draw2DImage(10, 10, 250, 200, this.RTTexture, false)
+                }
+            }
+        }
+    }
+};
+
+CL3D.WaterSurfaceSceneNode.prototype.createClone = function(b, a, e) {
+    var d = new CL3D.WaterSurfaceSceneNode();
+    this.cloneMembers(d, b, a, e);
+    if (this.OwnedMesh) {
+        d.OwnedMesh = this.OwnedMesh.clone()
+    }
+    d.ReadonlyMaterials = this.ReadonlyMaterials;
+    d.DoesCollision = this.DoesCollision;
+    if (this.Box) {
+        d.Box = this.Box.clone()
+    }
+    return d
+};
+
+CL3D.WaterSurfaceSceneNode.prototype.prepareForRendering = function(b) {
+    if (this.PreparedForRendering) {
+        return this.RTTexture != null
+    }
+    this.PreparedForRendering = true;
+    this.initRTT(b);
+    if (!this.RTTexture) {
+        return false
+    }
+    var a = this;
+    var c = b.getWebGL();
+    this.Mat.Type = b.createMaterialType(this.vs_shader_water, this.fs_shader_water, true, c.SRC_ALPHA, c.ONE_MINUS_SRC_ALPHA, function() {
+        a.setShaderConstants(b)
+    });
+    return true
+};
+
+CL3D.WaterSurfaceSceneNode.prototype.vs_shader_water = "		\
+	uniform mat4 worldviewproj;									\
+	uniform float mWaveLength;									\
+	uniform vec2 mWaveMovement;									\
+																\
+	attribute vec4 vPosition;									\
+    attribute vec4 vNormal;										\
+	attribute vec4 vColor;										\
+    attribute vec2 vTexCoord1;									\
+	attribute vec2 vTexCoord2;									\
+																\
+	varying vec2 WavesTexCoord;									\
+	varying vec3 TexCoord;										\
+																\
+    void main()													\
+    {															\
+		vec4 pos = worldviewproj * vPosition;					\
+        gl_Position = pos;										\
+		WavesTexCoord = (vPosition.xz / mWaveLength) + mWaveMovement;	\
+		TexCoord.x = 0.5 * (pos.w + pos.x);						\
+		TexCoord.y = 0.5 * (pos.w + pos.y);						\
+		TexCoord.z = pos.w;										\
+    }															\
+	";
+	
+CL3D.WaterSurfaceSceneNode.prototype.fs_shader_water = "		\
+	uniform sampler2D texture1;									\
+	uniform sampler2D texture2;									\
+	uniform float		mWaveHeight;							\
+	uniform vec4		mWaterColor;							\
+																\
+    varying vec2 WavesTexCoord;									\
+	varying vec3 TexCoord;										\
+																\
+    void main()													\
+    {															\
+		vec4 normalClr = texture2D(texture2, WavesTexCoord.xy);	\
+		vec2 waveMovement = mWaveHeight * (normalClr.xy - 0.5);	\
+																\
+		vec2 projTexCoord = clamp((TexCoord.xy / TexCoord.z) + waveMovement, 0.0, 1.0);		\
+		vec4 reflectiveColor = texture2D(texture1, vec2(projTexCoord.x, -projTexCoord.y) );	\
+																\
+		gl_FragColor = mWaterColor * reflectiveColor;			\
+		gl_FragColor.a = mWaterColor.a;							\
+    }															\
+    ";
+
+CL3D.WaterSurfaceSceneNode.prototype.setShaderConstants = function(g) {
+    var h = g.getWebGL();
+    var b = g.getGLProgramFromMaterialType(this.Mat.Type);
+    if (!b) {
+        return
+    }
+    var d = h.getUniformLocation(b, "mWaterColor");
+    h.uniform4f(d, CL3D.getRed(this.WaterColor) / 255, CL3D.getGreen(this.WaterColor) / 255, CL3D.getBlue(this.WaterColor) / 255, CL3D.getAlpha(this.WaterColor) / 255);
+    var f = (CL3D.CLTimer.getTime() / 1000) % 1000;
+    var c = h.getUniformLocation(b, "mWaveMovement");
+    h.uniform2f(c, this.WaterFlowDirection.X * f, this.WaterFlowDirection.Y * f);
+    var a = h.getUniformLocation(b, "mWaveLength");
+    h.uniform1f(a, this.WaveLength * 100);
+    var e = h.getUniformLocation(b, "mWaveHeight");
+    h.uniform1f(e, this.WaveHeight)
+};
+
+CL3D.WaterSurfaceSceneNode.prototype.initRTT = function(b) {
+    if (b == null) {
+        return
+    }
+    var e = b.getWidth();
+    var d = b.getHeight();
+    var c = 512;
+    var a = 512;
+    switch (this.Details) {
+        case 0:
+            c = e / 2;
+            a = d / 2;
+            break;
+        case 1:
+            c = e / 3;
+            a = d / 3;
+            break;
+        case 2:
+            c = e / 4;
+            a = d / 4;
+            break
+    }
+    c = b.nextHighestPowerOfTwo(c);
+    a = b.nextHighestPowerOfTwo(a);
+    c = Math.min(c, a);
+    a = Math.min(c, a);
+    if (c < 64) {
+        c = 64
+    }
+    if (a < 64) {
+        a = 64
+    }
+    this.RTTexture = b.addRenderTargetTexture(c, a)
+};
+
+CL3D.WaterSurfaceSceneNode.prototype.OnAfterDrawSkyboxes = function(a) {
+    a.setProjection(this.FrustumCullingProjection)
+};

@@ -1,0 +1,48 @@
+CL3D.Animator = _Animator;
+
+class _Animator
+{
+    var Type = -1;
+
+    function _Animator() {}
+
+    function getType()
+    {
+        return "none";
+    }
+
+    function animateNode(b, a)
+    {
+        return false;
+    }
+
+    function onMouseDown(a) {}
+
+    function onMouseWheel(a) {}
+
+    function onMouseUp(a) {}
+
+    function onMouseMove(a) {}
+
+    function onKeyDown(a)
+    {
+        return false;
+    }
+
+    function onKeyUp(a)
+    {
+        return false;
+    }
+
+    function reset(a) {}
+
+    function findActionByType(a)
+    {
+        return null;
+    }
+
+    function createClone(a, c, b, d)
+    {
+        return null;
+    }
+};

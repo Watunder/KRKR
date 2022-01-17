@@ -1,0 +1,43 @@
+CL3D.HotspotSceneNode = function() {
+    this.Box = new CL3D.Box3d();
+    this.Width = 0;
+    this.Height = 0
+};
+
+CL3D.HotspotSceneNode.prototype = new CL3D.SceneNode();
+CL3D.DummyTransformationSceneNode = function() {
+    this.init();
+    this.Box = new CL3D.Box3d();
+    this.RelativeTransformationMatrix = new CL3D.Matrix4()
+};
+
+CL3D.DummyTransformationSceneNode.prototype = new CL3D.SceneNode();
+CL3D.DummyTransformationSceneNode.prototype.createClone = function(b, a, e) {
+    var d = new CL3D.DummyTransformationSceneNode();
+    this.cloneMembers(d, b, a, e);
+    if (this.Box) {
+        d.Box = this.Box.clone()
+    }
+    if (this.RelativeTransformationMatrix) {
+        d.RelativeTransformationMatrix = this.RelativeTransformationMatrix
+    }
+    return d
+};
+
+CL3D.DummyTransformationSceneNode.prototype.getRelativeTransformation = function() {
+    return this.RelativeTransformationMatrix
+};
+
+CL3D.DummyTransformationSceneNode.prototype.getType = function() {
+    return "dummytrans"
+};
+
+CL3D.TerrainSceneNode = function() {
+    this.init();
+    this.Box = new CL3D.Box3d()
+};
+
+CL3D.TerrainSceneNode.prototype = new CL3D.SceneNode();
+CL3D.TerrainSceneNode.prototype.getType = function() {
+    return "terrain"
+};

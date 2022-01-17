@@ -1,0 +1,329 @@
+CL3D.AnimatorCameraFPS = _AnimatorCameraFPS;
+
+class _AnimatorCameraFPS extends CL3D.Animator
+{
+    function _AnimatorCameraFPS(b, a)
+    {
+        this.Type = -1;
+        this.lastAnimTime = 0;
+        this.NoVerticalMovement = false;
+        this.moveByMouseDown = true;
+        this.moveByMouseMove = false;
+        this.moveByPanoDrag = false;
+        this.leftKeyDown = false;
+        this.rightKeyDown = false;
+        this.upKeyDown = false;
+        this.downKeyDown = false;
+        this.jumpKeyDown = false;
+        this.MoveSmoothing = 0;
+        this.lastMoveVector = new CL3D.Vect3d(0, 0, 0);
+        this.lastMoveTime = 0;
+        this.ChildrenDontUseZBuffer = true;
+        this.relativeRotationX = 0;
+        this.relativeRotationY = 0;
+        this.minZoom = 20;
+        this.maxZoom = 100;
+        this.zoomSpeed = (this.maxZoom - this.minZoom) / 50;
+        this.targetZoomValue = 90;
+        this.lastAnimTime = CL3D.CLTimer.getTime();
+        this.Camera = b;
+        this.CursorControl = a;
+        this.LastMouseDownLookX = -1;
+        this.LastMouseDownLookY = -1;
+        this.LastTimeJumpKeyWasUp = true;
+        this.lookAt(b.getTarget();
+    }
+
+    CL3D.AnimatorCameraFPS.prototype = new CL3D.Animator();
+    CL3D.AnimatorCameraFPS.prototype.getType = function() {
+        return "camerafps"
+    };
+
+    CL3D.AnimatorCameraFPS.prototype.MaxVerticalAngle = 88;
+    CL3D.AnimatorCameraFPS.prototype.MoveSpeed = 0.06;
+    CL3D.AnimatorCameraFPS.prototype.RotateSpeed = 200;
+    CL3D.AnimatorCameraFPS.prototype.JumpSpeed = 0;
+    CL3D.AnimatorCameraFPS.prototype.NoVerticalMovement = false;
+    CL3D.AnimatorCameraFPS.prototype.MayMove = true;
+    CL3D.AnimatorCameraFPS.prototype.MayZoom = true;
+    CL3D.AnimatorCameraFPS.prototype.setMayMove = function(a) {
+        this.MayMove = a
+    };
+
+    CL3D.AnimatorCameraFPS.prototype.setLookByMouseDown = function(a) {
+        this.moveByMouseDown = a;
+        this.moveByMouseMove = !a
+    };
+
+    CL3D.AnimatorCameraFPS.prototype.lookAt = function(b) {
+        if (this.Camera == null) {
+            return
+        }
+        var a = b.substract(this.Camera.Pos);
+        a = a.getHorizontalAngle();
+        this.relativeRotationX = a.X;
+        this.relativeRotationY = a.Y;
+        if (this.relativeRotationX > this.MaxVerticalAngle) {
+            this.relativeRotationX -= 360
+        }
+    };
+
+    CL3D.AnimatorCameraFPS.prototype.animateNode = function(r, C) {
+        if (this.Camera == null) {
+            return false
+        }
+        if (!(this.Camera.scene.getActiveCamera() === this.Camera)) {
+            return false
+        }
+        var b = CL3D.CLTimer.getTime();
+        var q = b - this.lastAnimTime;
+        if (q == 0) {
+            return false
+        }
+        if (q > 250) {
+            q = 250
+        }
+        this.lastAnimTime = b;
+        var i = new CL3D.Vect3d(0, 0, 0);
+        if (this.MayMove && (this.upKeyDown || this.downKeyDown)) {
+            var m = this.Camera.Pos.substract(this.Camera.getTarget());
+            if (this.NoVerticalMovement) {
+                m.Y = 0
+            }
+            m.normalize();
+            if (this.upKeyDown) {
+                i.addToThis(m.multiplyWithScal(this.MoveSpeed * -q))
+            }
+            if (this.downKeyDown) {
+                i.addToThis(m.multiplyWithScal(this.MoveSpeed * q))
+            }
+        }
+        if (this.MayMove && (this.leftKeyDown || this.rightKeyDown)) {
+            var d = this.Camera.Pos.substract(this.Camera.getTarget()).crossProduct(this.Camera.getUpVector());
+            d.normalize();
+            if (this.leftKeyDown) {
+                d = d.multiplyWithScal(this.MoveSpeed * -q);
+                i.addToThis(d)
+            }
+            if (this.rightKeyDown) {
+                d = d.multiplyWithScal(this.MoveSpeed * q);
+                i.addToThis(d)
+            }
+        }
+        if (this.MoveSmoothing != 0) {
+            var e = i.clone();
+            if (!e.equalsZero()) {
+                this.lastMoveVector = e;
+                this.lastMoveVector.multiplyThisWithScal(1 / q);
+                this.lastMoveTime = b
+            } else {
+                if (this.lastMoveTime != 0 && !this.lastMoveVector.equalsZero()) {
+                    var u = b - this.lastMoveTime;
+                    if (u > 0 && u < this.MoveSmoothing) {
+                        var z = this.lastMoveVector.getLength() * (1 - (u / this.MoveSmoothing)) * q;
+                        var k = this.lastMoveVector.clone();
+                        k.normalize();
+                        k.multiplyThisWithScal(z * 0.5);
+                        i.addToThis(k)
+                    } else {
+                        this.lastMoveVector.set(0, 0, 0)
+                    }
+                }
+            }
+        }
+        i.normalize();
+        i.multiplyThisWithScal(q * this.MoveSpeed);
+        this.Camera.Pos.addToThis(i);
+        this.Camera.setTarget(this.Camera.getTarget().add(i));
+        var E = new CL3D.Vect3d(0, 0, 1);
+        var A = new CL3D.Matrix4();
+        A.setRotationDegrees(new CL3D.Vect3d(this.relativeRotationX, this.relativeRotationY, 0));
+        A.transformVect(E);
+        var g = false;
+        if (this.CursorControl != null) {
+            g = this.CursorControl.isInPointerLockMode()
+        }
+        var B = 300;
+        var c = 0;
+        var w = 1 / 50000;
+        var s = 1 / 50000;
+        var j = false;
+        if (this.CursorControl != null && r.scene != null && !g) {
+            j = r.scene.isCoordOver2DOverlayNode(this.CursorControl.getMouseX(), this.CursorControl.getMouseY(), true) != null
+        }
+        if (this.moveByMouseDown) {
+            w *= 3;
+            s *= 3
+        }
+        if (!j) {
+            if (g) {
+                c = this.CursorControl.getMouseMoveY()
+            } else {
+                if (this.moveByMouseMove) {
+                    var h = this.CursorControl.getRenderer().getHeight();
+                    var t = this.CursorControl.getMouseY();
+                    if (h > 0 && t > 0 && this.CursorControl.isMouseOverCanvas()) {
+                        c = Math.sin((t - (h / 2)) / h) * 100 * 0.5
+                    }
+                } else {
+                    if (this.moveByMouseDown || this.moveByPanoDrag) {
+                        if (this.CursorControl.isMouseDown()) {
+                            var l = this.CursorControl.getMouseY();
+                            c = this.LastMouseDownLookY == -1 ? 0 : (l - this.LastMouseDownLookY);
+                            if (c != 0) {
+                                this.CursorControl.LastCameraDragTime = b
+                            }
+                            this.LastMouseDownLookY = l
+                        } else {
+                            this.LastMouseDownLookY = -1
+                        }
+                    }
+                }
+            }
+        }
+        c += this.getAdditionalYLookDiff();
+        var f = q;
+        if (f > 100) {
+            f = 100
+        }
+        if (c > B) {
+            c = B
+        }
+        if (c < -B) {
+            c = -B
+        }
+        this.relativeRotationX += c * (f * (this.RotateSpeed * s));
+        if (this.relativeRotationX < -this.MaxVerticalAngle) {
+            this.relativeRotationX = -this.MaxVerticalAngle
+        }
+        if (this.relativeRotationX > this.MaxVerticalAngle) {
+            this.relativeRotationX = this.MaxVerticalAngle
+        }
+        var p = 0;
+        if (!j) {
+            if (g) {
+                p = this.CursorControl.getMouseMoveX()
+            } else {
+                if (this.moveByMouseMove) {
+                    var y = this.CursorControl.getRenderer().getWidth();
+                    var x = this.CursorControl.getMouseX();
+                    if (y > 0 && x > 0 && this.CursorControl.isMouseOverCanvas()) {
+                        p = Math.sin((x - (y / 2)) / y) * 100 * 0.5
+                    }
+                } else {
+                    if (this.moveByMouseDown || this.moveByPanoDrag) {
+                        if (this.CursorControl.isMouseDown()) {
+                            var o = this.CursorControl.getMouseX();
+                            p = this.LastMouseDownLookX == -1 ? 0 : (o - this.LastMouseDownLookX);
+                            if (p != 0) {
+                                this.CursorControl.LastCameraDragTime = b
+                            }
+                            this.LastMouseDownLookX = o
+                        } else {
+                            this.LastMouseDownLookX = -1
+                        }
+                    }
+                }
+            }
+        }
+        p += this.getAdditionalXLookDiff();
+        if (p > B) {
+            p = B
+        }
+        if (p < -B) {
+            p = -B
+        }
+        this.relativeRotationY += p * (f * (this.RotateSpeed * w));
+        if (g || this.moveByMouseDown || this.moveByPanoDrag) {
+            this.CursorControl.setMouseDownWhereMouseIsNow()
+        }
+        if (this.MayMove) {
+            if (this.jumpKeyDown) {
+                if (this.LastTimeJumpKeyWasUp) {
+                    var D = r.getAnimatorOfType("collisionresponse");
+                    if (D && !D.isFalling()) {
+                        this.LastTimeJumpKeyWasUp = false;
+                        D.jump(this.JumpSpeed)
+                    }
+                }
+            } else {
+                this.LastTimeJumpKeyWasUp = true
+            }
+        }
+        this.Camera.setTarget(this.Camera.Pos.add(E));
+        return false
+    };
+
+    CL3D.AnimatorCameraFPS.prototype.onMouseDown = function(a) {
+        CL3D.Animator.prototype.onMouseDown.call(this, a);
+        if (this.moveByMouseMove && this.CursorControl.pointerLockForFPSCameras && !this.CursorControl.isInPointerLockMode()) {
+            this.CursorControl.requestPointerLock()
+        }
+    };
+
+    CL3D.AnimatorCameraFPS.prototype.onMouseWheel = function(a) {};
+
+    CL3D.AnimatorCameraFPS.prototype.onMouseUp = function(a) {
+        CL3D.Animator.prototype.onMouseUp.call(this, a)
+    };
+
+    CL3D.AnimatorCameraFPS.prototype.onMouseMove = function(a) {
+        CL3D.Animator.prototype.onMouseMove.call(this, a)
+    };
+
+    CL3D.AnimatorCameraFPS.prototype.setKeyBool = function(b, a) {
+        if (a == 37 || a == 65) {
+            this.leftKeyDown = b;
+            if (b) {
+                this.rightKeyDown = false
+            }
+            return true
+        }
+        if (a == 39 || a == 68) {
+            this.rightKeyDown = b;
+            if (b) {
+                this.leftKeyDown = false
+            }
+            return true
+        }
+        if (a == 38 || a == 87) {
+            this.upKeyDown = b;
+            if (b) {
+                this.downKeyDown = false
+            }
+            return true
+        }
+        if (a == 40 || a == 83) {
+            this.downKeyDown = b;
+            if (b) {
+                this.upKeyDown = false
+            }
+            return true
+        }
+        if (a == 32) {
+            this.jumpKeyDown = b;
+            return true
+        }
+        return false
+    };
+
+    CL3D.AnimatorCameraFPS.prototype.onKeyDown = function(a) {
+        return this.setKeyBool(true, a.keyCode)
+    };
+
+    CL3D.AnimatorCameraFPS.prototype.onKeyUp = function(a) {
+        return this.setKeyBool(false, a.keyCode)
+    };
+
+    CL3D.AnimatorCameraFPS.prototype.getAdditionalXLookDiff = function() {
+        return 0
+    };
+
+    CL3D.AnimatorCameraFPS.prototype.getAdditionalYLookDiff = function() {
+        return 0
+    };
+
+    CL3D.AnimatorCameraFPS.prototype.getAdditionalZoomDiff = function() {
+        return 0
+    };
+};

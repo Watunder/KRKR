@@ -1,0 +1,384 @@
+CL3D.Overlay2DSceneNode = function(a) {
+    this.init();
+    this.engine = a;
+    this.Box = new CL3D.Box3d();
+    this.PosAbsoluteX = 100;
+    this.PosAbsoluteY = 100;
+    this.SizeAbsoluteWidth = 50;
+    this.SizeAbsoluteHeight = 50;
+    this.PosRelativeX = 0.5;
+    this.PosRelativeY = 0.5;
+    this.SizeRelativeWidth = 1 / 6;
+    this.SizeRelativeHeight = 1 / 6;
+    this.SizeModeIsAbsolute = true;
+    this.ShowBackGround = true;
+    this.BackGroundColor = 0;
+    this.Texture = null;
+    this.TextureHover = null;
+    this.RetainAspectRatio = true;
+    this.BlurImage = false;
+    this.DrawText = false;
+    this.TextAlignment = 1;
+    this.Text = "";
+    this.FontName = "";
+    this.TextColor = 0;
+    this.AnimateOnHover = false;
+    this.OnHoverSetFontColor = false;
+    this.HoverFontColor = false;
+    this.OnHoverSetBackgroundColor = false;
+    this.HoverBackgroundColor = false;
+    this.OnHoverDrawTexture = false;
+    this.TextTexture = null;
+    this.TextHoverTexture = null;
+    this.CreatedTextTextureText = "";
+    this.CreatedTextTextureFontName = "";
+    this.CurrentFontPixelHeight = 0
+};
+
+CL3D.Overlay2DSceneNode.prototype = new CL3D.SceneNode();
+CL3D.Overlay2DSceneNode.prototype.FontName = "";
+CL3D.Overlay2DSceneNode.prototype.TextColor = 0;
+CL3D.Overlay2DSceneNode.prototype.TextAlignment = 1;
+CL3D.Overlay2DSceneNode.prototype.blocksCameraInput = function() {
+    return false
+};
+
+CL3D.Overlay2DSceneNode.prototype.getBoundingBox = function() {
+    return this.Box
+};
+
+CL3D.Overlay2DSceneNode.prototype.getType = function() {
+    return "2doverlay"
+};
+
+CL3D.Overlay2DSceneNode.prototype.set2DPosition = function(b, d, c, a) {
+    this.PosAbsoluteX = b;
+    this.PosAbsoluteY = d;
+    this.SizeAbsoluteWidth = c;
+    this.SizeAbsoluteHeight = a;
+    this.SizeModeIsAbsolute = true
+};
+
+CL3D.Overlay2DSceneNode.prototype.setShowBackgroundColor = function(b, a) {
+    this.ShowBackGround = b;
+    if (this.ShowBackGround) {
+        this.BackGroundColor = a
+    }
+};
+
+CL3D.Overlay2DSceneNode.prototype.setShowImage = function(a) {
+    this.Texture = a
+};
+
+CL3D.Overlay2DSceneNode.prototype.setText = function(a) {
+    this.Text = a;
+    this.DrawText = this.Text != null && this.Text != "";
+    if (this.FontName == "") {
+        this.FontName = "12;default;arial;normal;bold;true"
+    }
+};
+
+CL3D.Overlay2DSceneNode.prototype.OnRegisterSceneNode = function(a) {
+    if (this.Visible) {
+        a.registerNodeForRendering(this, CL3D.Scene.RENDER_MODE_2DOVERLAY);
+        CL3D.SceneNode.prototype.OnRegisterSceneNode.call(this, a)
+    }
+};
+
+CL3D.Overlay2DSceneNode.prototype.render = function(l) {
+    var d = this.getScreenCoordinatesRect(true, l);
+    var f = d;
+    var k = false;
+    if (this.engine != null && this.AnimateOnHover) {
+        var c = this.engine.getMouseX();
+        var b = this.engine.getMouseY();
+        k = (d.x <= c && d.y <= b && d.x + d.w >= c && d.y + d.h >= b)
+    }
+    if (k && this.OnHoverSetBackgroundColor) {
+        l.draw2DRectangle(d.x, d.y, d.w, d.h, this.HoverBackgroundColor, true)
+    } else {
+        if (this.ShowBackGround) {
+            l.draw2DRectangle(d.x, d.y, d.w, d.h, this.BackGroundColor, true)
+        }
+    }
+    var n = this.Texture;
+    if (k && this.TextureHover && this.OnHoverDrawTexture) {
+        n = this.TextureHover
+    }
+    if (n != null && n.isLoaded()) {
+        var m = n.getWidth();
+        var j = n.getHeight();
+        if (!this.RetainAspectRatio) {
+            l.draw2DImage(d.x, d.y, d.w, d.h, n, true, null, null, null, !this.BlurImage)
+        } else {
+            if (m && j && d.h && d.w) {
+                var p = j / m;
+                var a = d.w;
+                var o = a * p;
+                if (o > d.h) {
+                    var r = d.h / o;
+                    a *= r;
+                    o *= r
+                }
+                d.w = a;
+                d.h = o;
+                f = d;
+                l.draw2DImage(d.x, d.y, d.w, d.h, n, true, null, null, null, !this.BlurImage)
+            }
+        }
+    }
+    if (this.DrawText && this.FontName && this.Text != "") {
+        this.createNewTextTexturesIfNecessary(l, d.w);
+        var i = this.TextTexture;
+        var e = this.TextColor;
+        if (k) {
+            if (this.TextHoverTexture) {
+                i = this.TextHoverTexture
+            }
+            e = this.HoverFontColor
+        }
+        if (i) {
+            var g = i.OriginalWidth;
+            var q = i.OriginalHeight;
+            if (this.TextAlignment == 1) {
+                l.draw2DFontImage(d.x + ((d.w - g) / 2), d.y + ((d.h - q) / 2), g, q, i, e)
+            } else {
+                l.draw2DFontImage(d.x, d.y, g, q, i, e)
+            }
+        }
+    } else {
+        this.destroyTextTextures(l)
+    }
+};
+
+CL3D.Overlay2DSceneNode.prototype.destroyTextTextures = function(a) {
+    a.deleteTexture(this.TextTexture);
+    a.deleteTexture(this.TextHoverTexture);
+    this.TextTexture = null;
+    this.TextHoverTexture = null
+};
+
+CL3D.Overlay2DSceneNode.prototype.createNewTextTexturesIfNecessary = function(k, d) {
+    var g = false;
+    var a = this.TextTexture == null || (g && this.TextHoverTexture == null);
+    if (!a) {
+        a = this.CreatedTextTextureText != this.Text || this.CreatedTextTextureFontName != this.FontName
+    }
+    if (!a) {
+        return
+    }
+    this.destroyTextTextures(k);
+    var c = document.createElement("canvas");
+    if (c == null) {
+        return
+    }
+    c.width = 1;
+    c.height = 1;
+    var p = null;
+    try {
+        p = c.getContext("2d");
+        if (p == null) {
+            return
+        }
+    } catch (f) {
+        return
+    }
+    var q = 12;
+    var e = this.parseCopperCubeFontString(this.FontName);
+    p.font = e;
+    if (this.TextAlignment == 2) {
+        var b = new Array();
+        this.breakText(b, d, this.Text, p);
+        var m = this.CurrentFontPixelHeight * 1.2;
+        var o = b.length;
+        var l = 0;
+        c.width = d;
+        c.height = Math.max(1, o * m);
+        p.fillStyle = "rgba(0, 0, 0, 1)";
+        p.fillRect(0, 0, c.width, c.height);
+        p.fillStyle = "rgba(255, 255, 255, 1)";
+        p.textBaseline = "top";
+        p.font = e;
+        for (var h = 0; h < b.length; ++h) {
+            p.fillText(b[h], 0, l);
+            l += m
+        }
+    } else {
+        var j = p.measureText(this.Text);
+        c.width = j.width;
+        c.height = this.CurrentFontPixelHeight * 1.2;
+        p.fillStyle = "rgba(0, 0, 0, 1)";
+        p.fillRect(0, 0, c.width, c.height);
+        p.fillStyle = "rgba(255, 255, 255, 1)";
+        p.textBaseline = "top";
+        p.font = e;
+        p.fillText(this.Text, 0, 0)
+    }
+    var n = k.createTextureFrom2DCanvas(c, true);
+    this.TextTexture = n;
+    this.TextHoverTexture = n;
+    this.CreatedTextTextureText = this.Text;
+    this.CreatedTextTextureFontName = this.FontName
+};
+
+CL3D.Overlay2DSceneNode.prototype.breakText = function(f, g, o, p) {
+    var s = "";
+    var a = "";
+    var b = "";
+    var m = 0;
+    var r = o.length;
+    var e = 0;
+    var n = g - 6;
+    var l = "c";
+    var j = true;
+    for (var h = 0; h < r; ++h) {
+        l = o.charAt(h);
+        var k = false;
+        if (l == "\r") {
+            k = true;
+            l = " ";
+            if (o.charAt(h + 1) == "\n") {
+                o = o.substr(0, h).concat(o.substr(h + 2));
+                --r
+            }
+        } else {
+            if (l == "\n") {
+                k = true;
+                l = " "
+            }
+        }
+        if (l == " " || l == 0 || h == (r - 1)) {
+            if (a.length) {
+                var q = p.measureText(b).width;
+                var d = p.measureText(a).width;
+                if (j && e + d + q > n) {
+                    e = d;
+                    f.push(s);
+                    m = h - a.length;
+                    s = a
+                } else {
+                    s = s.concat(b);
+                    s = s.concat(a);
+                    e += q + d
+                }
+                a = "";
+                b = ""
+            }
+            b = b.concat(l);
+            if (k) {
+                s = s.concat(b);
+                s = s.concat(a);
+                f.push(s);
+                m = h + 1;
+                s = "";
+                a = "";
+                b = "";
+                e = 0
+            }
+        } else {
+            a = a.concat(l)
+        }
+    }
+    s = s.concat(b);
+    s = s.concat(a);
+    f.push(s)
+};
+
+CL3D.Overlay2DSceneNode.prototype.getMaterialCount = function() {
+    return 0
+};
+
+CL3D.Overlay2DSceneNode.prototype.getScreenCoordinatesRect = function(d, e) {
+    var b = e.getWidth();
+    var c = e.getHeight();
+    var a = new Object();
+    if (this.SizeModeIsAbsolute) {
+        a.x = this.PosAbsoluteX;
+        a.y = this.PosAbsoluteY;
+        a.w = this.SizeAbsoluteWidth;
+        a.h = this.SizeAbsoluteHeight
+    } else {
+        a.x = this.PosRelativeX * b;
+        a.y = this.PosRelativeY * c;
+        a.w = this.SizeRelativeWidth * b;
+        a.h = this.SizeRelativeHeight * c
+    }
+    return a
+};
+
+CL3D.Overlay2DSceneNode.prototype.createClone = function(b, a, e) {
+    var d = new CL3D.Overlay2DSceneNode();
+    this.cloneMembers(d, b, a, e);
+    d.PosAbsoluteX = this.PosAbsoluteX;
+    d.PosAbsoluteY = this.PosAbsoluteY;
+    d.SizeAbsoluteWidth = this.SizeAbsoluteWidth;
+    d.SizeAbsoluteHeight = this.SizeAbsoluteHeight;
+    d.PosRelativeX = this.PosRelativeX;
+    d.PosRelativeY = this.PosRelativeY;
+    d.SizeRelativeWidth = this.SizeRelativeWidth;
+    d.SizeRelativeHeight = this.SizeRelativeHeight;
+    d.SizeModeIsAbsolute = this.SizeModeIsAbsolute;
+    d.ShowBackGround = this.ShowBackGround;
+    d.BackGroundColor = this.BackGroundColor;
+    d.Texture = this.Texture;
+    d.TextureHover = this.TextureHover;
+    d.RetainAspectRatio = this.RetainAspectRatio;
+    d.DrawText = this.DrawText;
+    d.TextAlignment = this.TextAlignment;
+    d.Text = this.Text;
+    d.FontName = this.FontName;
+    d.TextColor = this.TextColor;
+    d.AnimateOnHover = this.AnimateOnHover;
+    d.OnHoverSetFontColor = this.OnHoverSetFontColor;
+    d.HoverFontColor = this.HoverFontColor;
+    d.OnHoverSetBackgroundColor = this.OnHoverSetBackgroundColor;
+    d.HoverBackgroundColor = this.HoverBackgroundColor;
+    d.OnHoverDrawTexture = this.OnHoverDrawTexture;
+    return d
+};
+
+CL3D.Overlay2DSceneNode.prototype.parseCopperCubeFontString = function(c) {
+    var d = 12;
+    var f = "Arial";
+    var g = false;
+    var a = false;
+    if (c.indexOf("#fnt_") == 0) {
+        c = c.substr(5)
+    }
+    var k = c.split(";");
+    for (var e = 0; e < k.length; ++e) {
+        var l = k[e];
+        var b = l.toLowerCase();
+        if (e == 0) {
+            var j = parseInt(b);
+            d = j
+        } else {
+            if (e == 2) {
+                f = l
+            } else {
+                if (e == 3) {
+                    if (b.indexOf("italic") != -1) {
+                        g = true
+                    }
+                } else {
+                    if (e == 4) {
+                        if (b.indexOf("bold") != -1) {
+                            a = true
+                        }
+                    }
+                }
+            }
+        }
+    }
+    var h = "";
+    if (g) {
+        h += "italic "
+    }
+    if (a) {
+        h += "bold "
+    }
+    this.CurrentFontPixelHeight = (d * 96 / 72);
+    h += this.CurrentFontPixelHeight + "px ";
+    h += f;
+    return h
+};

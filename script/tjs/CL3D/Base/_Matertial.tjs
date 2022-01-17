@@ -1,0 +1,81 @@
+CL3D.Material = _Material;
+
+CL3D.Material.EMT_SOLID = 0;
+CL3D.Material.EMT_LIGHTMAP = 2;
+CL3D.Material.EMT_REFLECTION_2_LAYER = 11;
+CL3D.Material.EMT_TRANSPARENT_ADD_COLOR = 12;
+CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL = 13;
+CL3D.Material.EMT_TRANSPARENT_REFLECTION_2_LAYER = 16;
+CL3D.Material.EMT_NORMAL_MAP_SOLID = 17;
+CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF = 14;
+CL3D.Material.EMT_SOLID_VERTEX_ALPHA_TWO_TEXTURE_BLEND = 25;
+CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF_MOVING_GRASS = 26;
+
+CL3D.Material.member_list =
+[
+    "Type",
+    "Tex1",
+    "Tex2",
+    "ZWriteEnabled",
+    "ZReadEnabled",
+    "ClampTexture1",
+    "Lighting",
+    "BackfaceCulling",
+    "setFrom",
+    "clone",
+    "doesNotUseDepthMap",
+    "isTransparent"
+];
+
+class _Material
+{
+    var Type = 0;
+    var Tex1 = null;
+    var Tex2 = null;
+    var ZWriteEnabled = true;
+    var ZReadEnabled = true;
+    var ClampTexture1 = false;
+    var Lighting = false;
+    var BackfaceCulling = true;
+
+    function _Material() {}
+
+    function setFrom(a)
+    {
+        if (!a) return;
+        
+        this.Type = a.Type;
+        this.ZWriteEnabled = a.ZWriteEnabled;
+        this.Tex1 = a.Tex1;
+        this.Tex2 = a.Tex2;
+        this.ClampTexture1 = a.ClampTexture1;
+        this.Lighting = a.Lighting;
+        this.BackfaceCulling = a.BackfaceCulling;
+    };
+
+    function clone()
+    {
+        var inst = new CL3D.Material();
+
+        inst.Type = this.Type;
+        inst.ZReadEnabled = this.ZReadEnabled;
+        inst.ZWriteEnabled = this.ZWriteEnabled;
+        inst.Tex1 = this.Tex1;
+        inst.Tex2 = this.Tex2;
+        inst.ClampTexture1 = this.ClampTexture1;
+        inst.Lighting = this.Lighting;
+        inst.BackfaceCulling = this.BackfaceCulling;
+
+        return inst;
+    }
+
+    function doesNotUseDepthMap()
+    {
+        return this.Type == CL3D.Material.EMT_TRANSPARENT_ADD_COLOR || this.Type == CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL || this.Type == CL3D.Material.EMT_TRANSPARENT_REFLECTION_2_LAYER;
+    }
+
+    function isTransparent()
+    {
+        return this.Type == CL3D.Material.EMT_TRANSPARENT_ADD_COLOR || this.Type == CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL || this.Type == CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF || this.Type == CL3D.Material.EMT_TRANSPARENT_ALPHA_CHANNEL_REF_MOVING_GRASS || this.Type == CL3D.Material.EMT_TRANSPARENT_REFLECTION_2_LAYER;
+    }
+};

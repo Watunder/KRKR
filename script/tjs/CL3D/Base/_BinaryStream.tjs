@@ -1,0 +1,334 @@
+CL3D.BinaryStream = _BinaryStream;
+
+CL3D.BinaryStream.member_list =
+[
+    "bigEndian",
+    "bytesAvailable",
+    "getPosition",
+    "readInt",
+    "readByte",
+    "readByteAt",
+    "readBoolean",
+    "readShort",
+    "readNumber",
+    "readSNumber",
+    "readUnsignedShort",
+    "readUnsignedInt",
+    "readSI8",
+    "readSI16",
+    "readSI32",
+    "readUI8",
+    "readUI16",
+    "readUI24",
+    "readUI32",
+    "readFixed",
+    "readFixed8",
+    "_readFixedPoint",
+    "readFloat16",
+    "readFloat",
+    "readDouble",
+    "decodeFloat32fast",
+    "decodeFloat",
+    "Buffer",
+    "readBits",
+    "setBuffer",
+    "hasNeededBits",
+    "readSB",
+    "readUB",
+    "readFB",
+    "readString",
+    "readBool",
+    "tell",
+    "seek",
+    "reset"
+];
+
+class _BinaryStream
+{
+    var bigEndian;
+
+    function _BinaryStream(a)
+    {
+        this._buffer = a;
+        this._length = a.length;
+        this._offset = 0;
+        this._bitBuffer = null;
+        this._bitOffset = 8;
+        this.bigEndian = false;
+    }
+
+    function bytesAvailable()
+    {
+        return this._length - this._offset;
+    }
+
+    function getPosition()
+    {
+        return this._offset;
+    }
+
+    function readInt()
+    {
+        return this.readSI32();
+    }
+
+    function readByte()
+    {
+        return this.readSI8();
+    }
+
+    function readByteAt(a)
+    {
+        return this._buffer.charCodeAt(a) & 255;
+    }
+
+    function readBoolean()
+    {
+        return this.readSI8() != 0;
+    }
+
+    function readShort()
+    {
+        return this.readUnsignedShort();
+    }
+
+    function readNumber(a)
+    {
+        var c = 0;
+        var d = this._offset;
+        var b = d + a;
+        while (b > d)
+        {
+            c = c * 256 + this.readByteAt(--b);
+        }
+        this._offset += a;
+        return c;
+    }
+
+    function readSNumber(b)
+    {
+        var c = this.readNumber(b);
+        var a = 1 << (b * 8 - 1);
+        if (c & a) c = (~c + 1) * -1;
+
+        return c;
+    };
+
+    function readUnsignedShort()
+    {
+        return this.readUI16();
+    }
+
+    function readUnsignedInt()
+    {
+        return this.readUI32();
+    }
+
+    function readSI8()
+    {
+        return this.readSNumber(1);
+    }
+
+    function readSI16()
+    {
+        return this.readSNumber(2);
+    }
+
+    function readSI32()
+    {
+        return this.readSNumber(4);
+    }
+
+    function readUI8()
+    {
+        return this.readNumber(1);
+    }
+
+    function readUI16()
+    {
+        return this.readNumber(2);
+    }
+
+    function readUI24()
+    {
+        return this.readNumber(3);
+    }
+
+    function readUI32()
+    {
+        return this.readNumber(4);
+    }
+
+    function readFixed()
+    {
+        return this._readFixedPoint(32, 16);
+    }
+
+    function readFixed8()
+    {
+        return this._readFixedPoint(16, 8);
+    }
+
+    function _readFixedPoint(c, a)
+    {
+        var b = this.readSB(c);
+        b = b * Math.pow(2, -a);
+        return b;
+    }
+
+    function readFloat16()
+    {
+        return this.decodeFloat32fast(5, 10);
+    }
+
+    function readFloat()
+    {
+        var a = this.decodeFloat32fast(this._buffer, this._offset);
+        this._offset += 4;
+        return a;
+    }
+
+    function readDouble()
+    {
+        var a = this._buffer.substring(this._offset, this._offset + 8);
+        var b = this.decodeFloat(a, 52, 11);
+        this._offset += 8;
+        return b;
+    };
+
+    function decodeFloat32fast(d, c)
+    {
+        var h = d.charCodeAt(c + 3) & 255,
+            g = d.charCodeAt(c + 2) & 255,
+            f = d.charCodeAt(c + 1) & 255,
+            e = d.charCodeAt(c + 0) & 255;
+        var a = 1 - (2 * (h >> 7));
+        var b = (((h << 1) & 255) | (g >> 7)) - 127;
+        var i = ((g & 127) << 16) | (f << 8) | e;
+
+        if (i == 0 && b == -127) return 0;
+
+        return a * (1 + i * Math.pow(2, -23)) * Math.pow(2, b);
+    };
+
+    function decodeFloat(f, c, n)
+    {
+        var l = ((l = new this.Buffer(this.bigEndian, f)), l),
+            g = Math.pow(2, n - 1) - 1,
+            j = l.readBits(c + n, 1),
+            k = l.readBits(c, n),
+            i = 0,
+            d = 2,
+            a = l.buffer.length + (-c >> 3) - 1,
+            e, h, m;
+        do
+        {
+            for (e = l.buffer[++a], h = c % 8 || 8, m = 1 << h; m >>= 1;
+                (e & m) && (i += 1 / d), d *= 2) {}
+        }
+        while (c -= h);
+
+        return k == (g << 1) + 1 ? i ? NaN : j ? -Infinity : +Infinity : (1 + j * -2) * (k || i ? !k ? Math.pow(2, -g + 1) * i : Math.pow(2, k - g) * (1 + i) : 0);
+    };
+
+    function Buffer(b, a)
+    {
+        this.bigEndian = b || 0, this.buffer = [], this.setBuffer(a);
+    }
+
+    function readBits(b, d)
+    {
+        function c(k, j)
+        {
+            for (++j; --j; k = ((k %= 2147483647 + 1) & 1073741824) == 1073741824 ? k * 2 : (k - 1073741824) * 2 + 2147483647 + 1) {}
+            return k;
+        }
+        if (b < 0 || d <= 0) return 0;
+
+        for (var e, f = b % 8, a = this.buffer.length - (b >> 3) - 1, i = this.buffer.length + (-(b + d) >> 3), h = a - i, g = ((this.buffer[a] >> f) & ((1 << (h ? 8 - f : d)) - 1)) + (h && (e = (b + d) % 8) ? (this.buffer[i++] & ((1 << e) - 1)) << (h-- << 3) - f : 0); h; g += c(this.buffer[i++], (h-- << 3) - f)) {}
+
+        return g;
+    };
+
+    function setBuffer(e)
+    {
+        if (e)
+        {
+            for (var c, d = c = e.length, a = this.buffer = new Array(c); d; a[c - d] = e.charCodeAt(--d)) {}
+            this.bigEndian && a.reverse();
+        }
+    }
+
+    function hasNeededBits(a)
+    {
+        return this.buffer.length >= -(-a >> 3);
+    }
+
+    function readSB(c)
+    {
+        var b = this.readUB(c);
+        var a = 1 << (c - 1);
+        if (b & a) b -= Math.pow(2, c);
+
+        return b;
+    }
+
+    function readUB(e)
+    {
+        var d = 0;
+        var c = this;
+        var b = e;
+        while (b--)
+        {
+            if (c._bitOffset == 8)
+            {
+                c._bitBuffer = c.readUI8();
+                c._bitOffset = 0;
+            }
+            var a = 128 >> c._bitOffset;
+            d = d * 2 + (c._bitBuffer & a ? 1 : 0);
+            c._bitOffset++
+        }
+        return d;
+    }
+
+    function readFB(a)
+    {
+        return this._readFixedPoint(a, 16);
+    }
+
+    function readString(d)
+    {
+        var c = [];
+        var a = d || this._length - this._offset;
+        while (a--)
+        {
+            var b = this.readNumber(1);
+            if (d || b) c.push(String.fromCharCode(b));
+            else break;
+        }
+        return c.join("");
+    };
+
+    function readBool(a)
+    {
+        return !!this.readUB(a || 1);
+    }
+
+    function tell()
+    {
+        return this._offset;
+    }
+
+    function seek(a, b)
+    {
+        this._offset = (b ? 0 : this._offset) + a;
+        return this;
+    }
+
+    function reset()
+    {
+        this._offset = 0;
+        return this;
+    }
+};

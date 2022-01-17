@@ -1,0 +1,303 @@
+CL3D.Vect3d = _Vect3d;
+
+CL3D.Vect3d.member_list =
+[
+    "X",
+    "Y",
+    "Z",
+    "set",
+    "clone",
+    "copyTo",
+    "substract",
+    "substractFromThis",
+    "add",
+    "addToThis",
+    "addToThisReturnMe",
+    "normalize",
+    "getNormalized",
+    "setLength",
+    "setTo",
+    "equals",
+    "equalsZero",
+    "equalsByNumbers",
+    "isZero",
+    "getLength",
+    "getDistanceTo",
+    "getDistanceFromSQ",
+    "getLengthSQ",
+    "multiplyWithScal",
+    "multiplyThisWithScal",
+    "multiplyThisWithScalReturnMe",
+    "multiplyThisWithVect",
+    "multiplyWithVect",
+    "divideThisThroughVect",
+    "divideThroughVect",
+    "crossProduct",
+    "dotProduct",
+    "getHorizontalAngle",
+    "rotateXYBy",
+    "rotateYZBy",
+    "rotateXZBy",
+    "getInterpolated",
+    "toString"
+];
+
+class _Vect3d
+{
+    var X = 0;
+    var Y = 0;
+    var Z = 0;
+
+    function _Vect3d(a, c, b)
+    {
+        if(b !== void) this.set(a, c, b);
+        else this.set(0, 0, 0);
+    }
+
+    function set(a, c, b)
+    {
+        this.X = a;
+        this.Y = c;
+        this.Z = b;
+    }
+
+    function clone()
+    {
+        return new CL3D.Vect3d(this.X, this.Y, this.Z);
+    }
+
+    function copyTo(a)
+    {
+        a.X = this.X;
+        a.Y = this.Y;
+        a.Z = this.Z;
+    }
+
+    function substract(a)
+    {
+        return _new(this.X - a.X, this.Y - a.Y, this.Z - a.Z);
+    }
+
+    function substractFromThis(a)
+    {
+        this.X -= a.X;
+        this.Y -= a.Y;
+        this.Z -= a.Z;
+    }
+
+    function add(a)
+    {
+        return _new(this.X + a.X, this.Y + a.Y, this.Z + a.Z);
+    }
+
+    function addToThis(a)
+    {
+        this.X += a.X;
+        this.Y += a.Y;
+        this.Z += a.Z;
+    }
+
+    function addToThisReturnMe(a)
+    {
+        this.X += a.X;
+        this.Y += a.Y;
+        this.Z += a.Z;
+        return this;
+    }
+
+    function normalize()
+    {
+        var a = this.X * this.X + this.Y * this.Y + this.Z * this.Z;
+        if (a > -1e-7 && a < 1e-7) return;
+        a = 1 / Math.sqrt(a);
+        this.X *= a;
+        this.Y *= a;
+        this.Z *= a;
+    }
+
+    function getNormalized()
+    {
+        var a = this.X * this.X + this.Y * this.Y + this.Z * this.Z;
+        if (a > -1e-7 && a < 1e-7) return _new();
+        a = 1 / Math.sqrt(a);
+        return _new(this.X * a, this.Y * a, this.Z * a);
+    }
+
+    function setLength(b)
+    {
+        var a = this.X * this.X + this.Y * this.Y + this.Z * this.Z;
+        if (a > -1e-7 && a < 1e-7) return;
+        a = b / Math.sqrt(a);
+        this.X *= a;
+        this.Y *= a;
+        this.Z *= a;
+    }
+
+    function setTo(a)
+    {
+        this.X = a.X;
+        this.Y = a.Y;
+        this.Z = a.Z;
+    }
+
+    function equals(a)
+    {
+        return CL3D.equals(this.X, a.X) && CL3D.equals(this.Y, a.Y) && CL3D.equals(this.Z, a.Z);
+    }
+
+    function equalsZero()
+    {
+        return CL3D.iszero(this.X) && CL3D.iszero(this.Y) && CL3D.iszero(this.Z);
+    }
+
+    function equalsByNumbers(a, c, b)
+    {
+        return CL3D.equals(this.X, a) && CL3D.equals(this.Y, c) && CL3D.equals(this.Z, b);
+    }
+
+    function isZero()
+    {
+        return this.X == 0 && this.Y == 0 && this.Z == 0;
+    }
+
+    function getLength()
+    {
+        return Math.sqrt(this.X * this.X + this.Y * this.Y + this.Z * this.Z);
+    }
+
+    function getDistanceTo(b)
+    {
+        var a = b.X - this.X;
+        var d = b.Y - this.Y;
+        var c = b.Z - this.Z;
+        return Math.sqrt(a * a + d * d + c * c);
+    }
+
+    function getDistanceFromSQ(b)
+    {
+        var a = b.X - this.X;
+        var d = b.Y - this.Y;
+        var c = b.Z - this.Z;
+        return a * a + d * d + c * c;
+    }
+
+    function getLengthSQ()
+    {
+        return this.X * this.X + this.Y * this.Y + this.Z * this.Z;
+    }
+
+    function multiplyWithScal(a)
+    {
+        return _new(this.X * a, this.Y * a, this.Z * a);
+    }
+
+    function multiplyThisWithScal(a)
+    {
+        this.X *= a;
+        this.Y *= a;
+        this.Z *= a;
+    }
+
+    function multiplyThisWithScalReturnMe(a)
+    {
+        this.X *= a;
+        this.Y *= a;
+        this.Z *= a;
+        return this;
+    }
+
+    function multiplyThisWithVect(a)
+    {
+        this.X *= a.X;
+        this.Y *= a.Y;
+        this.Z *= a.Z;
+    }
+
+    function multiplyWithVect(a)
+    {
+        return _new(this.X * a.X, this.Y * a.Y, this.Z * a.Z);
+    }
+
+    function divideThisThroughVect(a)
+    {
+        this.X /= a.X;
+        this.Y /= a.Y;
+        this.Z /= a.Z;
+    }
+
+    function divideThroughVect(a)
+    {
+        return _new(this.X / a.X, this.Y / a.Y, this.Z / a.Z);
+    }
+
+    function crossProduct(a)
+    {
+        return _new(this.Y * a.Z - this.Z * a.Y, this.Z * a.X - this.X * a.Z, this.X * a.Y - this.Y * a.X);
+    }
+
+    function dotProduct(a)
+    {
+        return this.X * a.X + this.Y * a.Y + this.Z * a.Z;
+    }
+
+    function getHorizontalAngle()
+    {
+        var b = _new();
+        b.Y = CL3D.radToDeg(Math.atan2(this.X, this.Z));
+
+        if (b.Y < 0) b.Y += 360;
+        if (b.Y >= 360) b.Y -= 360;
+
+        var a = Math.sqrt(this.X * this.X + this.Z * this.Z);
+        b.X = CL3D.radToDeg(Math.atan2(a, this.Y)) - 90;
+
+        if (b.X < 0) b.X += 360;
+        if (b.X >= 360) b.X -= 360;
+
+        return b;
+    }
+
+    function rotateXYBy(e)
+    {
+        e *= CL3D.DEGTORAD;
+        var b = Math.cos(e);
+        var d = Math.sin(e);
+        var c = this.X;
+        var a = this.Y;
+        this.X = c * b - a * d;
+        this.Y = c * d + a * b;
+    }
+
+    function rotateYZBy(e)
+    {
+        e *= CL3D.DEGTORAD;
+        var c = Math.cos(e);
+        var d = Math.sin(e);
+        var b = this.Y;
+        var a = this.Z;
+        this.Y = b * c - a * d;
+        this.Z = b * d + a * c;
+    }
+
+    function rotateXZBy(e)
+    {
+        e *= CL3D.DEGTORAD;
+        var b = Math.cos(e);
+        var d = Math.sin(e);
+        var c = this.X;
+        var a = this.Z;
+        this.X = c * b - a * d;
+        this.Z = c * d + a * b;
+    }
+
+    function getInterpolated(b, c)
+    {
+        var a = 1 - c;
+        return _new(b.X * a + this.X * c, b.Y * a + this.Y * c, b.Z * a + this.Z * c);
+    }
+
+    function toString()
+    {
+        return "(x: " + this.X + " y:" + this.Y + " z:" + this.Z + ")";
+    }
+};

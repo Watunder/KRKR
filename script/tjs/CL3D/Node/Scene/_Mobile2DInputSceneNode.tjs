@@ -1,0 +1,93 @@
+CL3D.Mobile2DInputSceneNode = function(a, b) {
+    CL3D.Overlay2DSceneNode.call(this, a);
+    this.CursorTex = null;
+    this.CursorPosX = 0;
+    this.CursorPosY = 0;
+    this.MouseOverButton = false;
+    this.RealWidth = 0;
+    this.RealHeight = 0;
+    this.RealPosX = 0;
+    this.RealPosY = 0;
+    this.InputMode = 0;
+    this.KeyCode = 0;
+    this.addAnimator(new CL3D.AnimatorMobileInput(a, b, this))
+};
+
+CL3D.Mobile2DInputSceneNode.prototype = new CL3D.Overlay2DSceneNode();
+CL3D.Mobile2DInputSceneNode.prototype.getType = function() {
+    return "mobile2dinput"
+};
+
+CL3D.Mobile2DInputSceneNode.prototype.blocksCameraInput = function() {
+    return true
+};
+
+CL3D.Mobile2DInputSceneNode.prototype.render = function(n) {
+    var d = this.getScreenCoordinatesRect(true, n);
+    var o = d;
+    var b = false;
+    if (this.engine != null) {
+        var x = this.engine.getMouseX();
+        var u = this.engine.getMouseY();
+        this.MouseOverButton = (d.x <= x && d.y <= u && d.x + d.w >= x && d.y + d.h >= u);
+        if (this.AnimateOnHover) {
+            b = this.MouseOverButton
+        }
+    }
+    if (b && this.OnHoverSetBackgroundColor) {
+        n.draw2DRectangle(d.x, d.y, d.w, d.h, this.HoverBackgroundColor, true)
+    } else {
+        if (this.ShowBackGround) {
+            n.draw2DRectangle(d.x, d.y, d.w, d.h, this.BackGroundColor, true)
+        }
+    }
+    var y = this.Texture;
+    if (b && this.TextureHover && this.OnHoverDrawTexture) {
+        y = this.TextureHover
+    }
+    var g = 0;
+    var f = 0;
+    if (y != null && y.isLoaded()) {
+        var j = y.getWidth();
+        var p = y.getHeight();
+        if (!this.RetainAspectRatio) {
+            n.draw2DImage(d.x, d.y, d.w, d.h, y, true);
+            g = d.w;
+            f = d.h
+        } else {
+            if (j && p && d.h && d.w) {
+                var a = p / j;
+                var m = d.w;
+                var k = m * a;
+                if (k > d.h) {
+                    var c = d.h / k;
+                    m *= c;
+                    k *= c
+                }
+                d.w = m;
+                d.h = k;
+                o = d;
+                n.draw2DImage(d.x, d.y, d.w, d.h, y, true);
+                g = d.w;
+                f = d.h
+            }
+        }
+    }
+    this.RealWidth = g;
+    this.RealHeight = f;
+    this.RealPosX = d.x;
+    this.RealPosY = d.y;
+    if (this.InputMode == 0 && this.CursorTex != null && this.CursorTex.isLoaded() && y != null && y.isLoaded()) {
+        var v = this.CursorPosX * Math.sqrt(1 - 0.5 * (this.CursorPosY * this.CursorPosY));
+        var t = this.CursorPosY * Math.sqrt(1 - 0.5 * (this.CursorPosX * this.CursorPosX));
+        v = (v + 1) * 0.5;
+        t = (t + 1) * 0.5;
+        var s = 1 / (y.getWidth() / Number(this.CursorTex.getWidth()));
+        var r = 1 / (y.getHeight() / Number(this.CursorTex.getHeight()));
+        var e = s * g;
+        var q = r * f;
+        var i = d.x + (v * (g)) - (e * 0.5);
+        var l = d.y + (t * (f)) - (q * 0.5);
+        n.draw2DImage(i, l, e, q, this.CursorTex, true)
+    }
+};

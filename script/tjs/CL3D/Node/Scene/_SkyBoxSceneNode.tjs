@@ -1,0 +1,110 @@
+CL3D.SkyBoxSceneNode = _SkyBoxSceneNode;
+
+class _SkyBoxSceneNode extends CL3D.MeshSceneNode
+{
+
+    var OwnedMesh = new CL3D.Mesh();
+
+    function _SkyBoxSceneNode()
+    {
+        var a = [0, 1, 2, 0, 2, 3];
+        var b = new CL3D.MeshBuffer();
+        this.OwnedMesh.AddMeshBuffer(b);
+        b.Mat.ClampTexture1 = true;
+        b.Indices = a;
+        b.Vertices.push(this.createVertex(-1, -1, -1, 0, 0, 1, 1, 1));
+        b.Vertices.push(this.createVertex(1, -1, -1, 0, 0, 1, 0, 1));
+        b.Vertices.push(this.createVertex(1, 1, -1, 0, 0, 1, 0, 0));
+        b.Vertices.push(this.createVertex(-1, 1, -1, 0, 0, 1, 1, 0));
+        b = new CL3D.MeshBuffer();
+        this.OwnedMesh.AddMeshBuffer(b);
+        b.Mat.ClampTexture1 = true;
+        b.Indices = a;
+        b.Vertices.push(this.createVertex(1, -1, -1, -1, 0, 0, 1, 1));
+        b.Vertices.push(this.createVertex(1, -1, 1, -1, 0, 0, 0, 1));
+        b.Vertices.push(this.createVertex(1, 1, 1, -1, 0, 0, 0, 0));
+        b.Vertices.push(this.createVertex(1, 1, -1, -1, 0, 0, 1, 0));
+        b = new CL3D.MeshBuffer();
+        this.OwnedMesh.AddMeshBuffer(b);
+        b.Mat.ClampTexture1 = true;
+        b.Indices = a;
+        b.Vertices.push(this.createVertex(-1, -1, 1, 1, 0, 0, 1, 1));
+        b.Vertices.push(this.createVertex(-1, -1, -1, 1, 0, 0, 0, 1));
+        b.Vertices.push(this.createVertex(-1, 1, -1, 1, 0, 0, 0, 0));
+        b.Vertices.push(this.createVertex(-1, 1, 1, 1, 0, 0, 1, 0));
+        b = new CL3D.MeshBuffer();
+        this.OwnedMesh.AddMeshBuffer(b);
+        b.Mat.ClampTexture1 = true;
+        b.Indices = a;
+        b.Vertices.push(this.createVertex(1, -1, 1, 0, 0, -1, 1, 1));
+        b.Vertices.push(this.createVertex(-1, -1, 1, 0, 0, -1, 0, 1));
+        b.Vertices.push(this.createVertex(-1, 1, 1, 0, 0, -1, 0, 0));
+        b.Vertices.push(this.createVertex(1, 1, 1, 0, 0, -1, 1, 0));
+        b = new CL3D.MeshBuffer();
+        this.OwnedMesh.AddMeshBuffer(b);
+        b.Mat.ClampTexture1 = true;
+        b.Indices = a;
+        b.Vertices.push(this.createVertex(1, 1, -1, 0, -1, 0, 1, 1));
+        b.Vertices.push(this.createVertex(1, 1, 1, 0, -1, 0, 0, 1));
+        b.Vertices.push(this.createVertex(-1, 1, 1, 0, -1, 0, 0, 0));
+        b.Vertices.push(this.createVertex(-1, 1, -1, 0, -1, 0, 1, 0));
+        b = new CL3D.MeshBuffer();
+        this.OwnedMesh.AddMeshBuffer(b);
+        b.Mat.ClampTexture1 = true;
+        b.Indices = a;
+        b.Vertices.push(this.createVertex(1, -1, 1, 0, 1, 0, 1, 1));
+        b.Vertices.push(this.createVertex(1, -1, -1, 0, 1, 0, 0, 1));
+        b.Vertices.push(this.createVertex(-1, -1, -1, 0, 1, 0, 0, 0));
+        b.Vertices.push(this.createVertex(-1, -1, 1, 0, 1, 0, 1, 0))
+    };
+
+    function getType()
+    {
+        return "sky";
+    }
+
+    function createVertex(g, f, e, d, c, b, i, h)
+    {
+        var a = new CL3D.Vertex3D(true);
+        a.Pos.X = g;
+        a.Pos.Y = f;
+        a.Pos.Z = e;
+        a.TCoords.X = i;
+        a.TCoords.Y = h;
+        return a;
+    }
+
+    function OnRegisterSceneNode(a)
+    {
+        if (this.Visible)
+        {
+            a.registerNodeForRendering(this, 1);
+            CL3D.SceneNode.prototype.OnRegisterSceneNode.call(this, a);
+        }
+    }
+
+    function render(b)
+    {
+        var a = this.scene.getActiveCamera();
+        if (!a || !this.OwnedMesh) return;
+        var d = new CL3D.Matrix4(false);
+        this.AbsoluteTransformation.copyTo(d);
+        d.setTranslation(a.getAbsolutePosition());
+        var e = (a.getNearValue() + a.getFarValue()) * 0.5;
+        var c = new CL3D.Matrix4();
+        c.setScale(new CL3D.Vect3d(e, e, e));
+        b.setWorld(d.multiply(c));
+        b.drawMesh(this.OwnedMesh, true);
+    }
+
+    function createClone(b, a, e)
+    {
+        var d = new CL3D.SkyBoxSceneNode();
+        this.cloneMembers(d, b, a, e);
+        if (this.OwnedMesh) d.OwnedMesh = this.OwnedMesh.clone();
+        d.ReadonlyMaterials = this.ReadonlyMaterials;
+        d.DoesCollision = this.DoesCollision;
+        if (this.Box) d.Box = this.Box.clone();
+        return d;
+    }
+};
