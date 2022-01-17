@@ -1,6 +1,4 @@
 # KRKR
-
-## Introduction
 TJS script engine with Squirrel binding
 
 ## Reference
