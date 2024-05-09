@@ -4099,6 +4099,59 @@ void tTJSNI_BaseLayer::DrawGlyph(tjs_int x, tjs_int y, iTJSDispatch2* glyph, tjs
 	Update(r);
 }
 //---------------------------------------------------------------------------
+void tTJSNI_BaseLayer::PileRect(tjs_int dx, tjs_int dy, tTJSNI_BaseLayer *src,
+	const tTVPRect &srcrect, tjs_int opacity)
+{
+	// obsoleted (use OperateRect)
+
+	// pile rectangle ( pixel alpha blend )
+
+	// piled destination is determined by Drawface (not LayerType).
+	// dfAlpha: destination alpha is considered
+	// dfOpaque: destination alpha is ignored ( treated as full opaque )
+	// dfMask or dfProvince : causes an error
+	// this method ignores soruce layer's LayerType or DrawFace.
+	// the destination alpha is held on dfAlpha if 'HoldAlpha' is true, otherwide the
+	// alpha information is destroyed.
+
+	if(DrawFace != dfAlpha && DrawFace != dfOpaque)
+	{
+		TVPThrowExceptionMessage(TVPNotDrawableFaceType, TJS_W("pileRect"));
+	}
+
+	tTVPRect rect;
+	if(!ClipDestPointAndSrcRect(dx, dy, rect, srcrect)) return; // out of the clipping rect
+
+	switch(DrawFace)
+	{
+	case dfAlpha:
+		if(!MainImage) TVPThrowExceptionMessage(TVPNotDrawableLayerType);
+		if(!src->MainImage) TVPThrowExceptionMessage(TVPSourceLayerHasNoImage);
+		ImageModified =
+			MainImage->Blt(dx, dy, src->MainImage, rect, bmAlphaOnAlpha, opacity, HoldAlpha) || ImageModified;
+		break;
+
+	case dfOpaque:
+		if(!MainImage) TVPThrowExceptionMessage(TVPNotDrawableLayerType);
+		if(!src->MainImage) TVPThrowExceptionMessage(TVPSourceLayerHasNoImage);
+		ImageModified =
+			MainImage->Blt(dx, dy, src->MainImage, rect, bmAlpha, opacity, HoldAlpha) || ImageModified;
+		break;
+	}
+
+	tTVPRect ur = rect;
+	ur.set_offsets(dx, dy);
+	if(ImageLeft != 0 || ImageTop != 0)
+	{
+		ur.add_offsets(ImageLeft, ImageTop);
+		Update(ur);
+	}
+	else
+	{
+		Update(ur);
+	}
+}
+//---------------------------------------------------------------------------
 void tTJSNI_BaseLayer::PiledCopy(tjs_int dx, tjs_int dy, tTJSNI_BaseLayer *src,
 	const tTVPRect &srcrect)
 {
@@ -7091,6 +7144,38 @@ TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/drawGlyph)
 	return TJS_S_OK;
 }
 TJS_END_NATIVE_METHOD_DECL(/*func. name*/drawGlyph)
+//----------------------------------------------------------------------
+TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/pileRect)
+{
+	TJS_GET_NATIVE_INSTANCE(/*var. name*/_this, /*var. type*/tTJSNI_Layer);
+	if(numparams < 7) return TJS_E_BADPARAMCOUNT;
+
+	tTJSNI_BaseLayer * src = NULL;
+	tTJSVariantClosure clo = param[2]->AsObjectClosureNoAddRef();
+	if(clo.Object)
+	{
+		if(TJS_FAILED(clo.Object->NativeInstanceSupport(TJS_NIS_GETINSTANCE,
+			tTJSNC_Layer::ClassID, (iTJSNativeInstance**)&src)))
+			TVPThrowExceptionMessage(TVPSpecifyLayer);
+	}
+	if(!src) TVPThrowExceptionMessage(TVPSpecifyLayer);
+
+	tTVPRect rect(*param[3], *param[4], *param[5], *param[6]);
+	rect.right += rect.left;
+	rect.bottom += rect.top;
+
+	if(numparams >= 9 && param[8]->Type() != tvtVoid)
+	{
+		TVPAddLog(TVPFormatMessage(TVPHoldDestinationAlphaParameterIsNowDeprecated,
+			TJS_W("Layer.pileRect"), TJS_W("9")));
+	}
+
+	_this->PileRect(*param[0], *param[1], src, rect,
+		(numparams>=8 && param[7]->Type() != tvtVoid)?(tjs_int)*param[7]:255);
+
+	return TJS_S_OK;
+}
+TJS_END_NATIVE_METHOD_DECL(/*func. name*/pileRect)
 //----------------------------------------------------------------------
 TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/piledCopy)
 {
